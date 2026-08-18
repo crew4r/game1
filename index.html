@@ -37,8 +37,9 @@
     background: rgba(0,0,0,0.75);
     display: none; align-items: center; justify-content: center;
     flex-direction: column; z-index: 20;
+    padding: 16px; box-sizing: border-box;
   }
-  #levelUpModal h2 { margin-bottom: 20px; color: #ffd54f; }
+  #levelUpModal h2 { margin-bottom: 20px; color: #ffd54f; font-size: 22px; }
   .cardRow { display: flex; gap: 16px; }
   .card {
     background: #1e1e2e; border: 2px solid #444; border-radius: 10px;
@@ -50,6 +51,21 @@
   .card .icon { font-size: 32px; margin-bottom: 8px; }
   .card .name { font-weight: bold; margin-bottom: 6px; }
   .card .desc { font-size: 12px; color: #aaa; }
+
+  /* 세로형 스마트폰 대응: 카드를 세로로 쌓고 글자 크게 */
+  @media (max-width: 480px) {
+    #levelUpModal h2 { font-size: 20px; margin-bottom: 6px; }
+    .cardRow { flex-direction: column; width: 100%; max-width: 340px; gap: 12px; }
+    .card {
+      width: 100%; box-sizing: border-box;
+      display: flex; align-items: center; text-align: left;
+      gap: 14px; padding: 14px 16px;
+    }
+    .card .icon { font-size: 34px; margin-bottom: 0; flex-shrink: 0; }
+    .card .name { font-size: 17px; margin-bottom: 4px; }
+    .card .desc { font-size: 14px; line-height: 1.35; }
+    .card .textWrap { display: flex; flex-direction: column; }
+  }
   #gameOverModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.85);
@@ -75,21 +91,40 @@
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer;
     font-weight: bold;
   }
-  /* 모바일 가상 조이스틱 */
+  /* 모바일 가상 조이스틱 (터치한 지점에서 바로 생성되는 방식) */
+  #touchZone {
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+    z-index: 12; touch-action: none; display: none;
+  }
   #joystickBase {
-    position: fixed; left: 28px; bottom: 28px; width: 110px; height: 110px;
+    position: fixed; width: 110px; height: 110px;
     border-radius: 50%; background: rgba(255,255,255,0.12);
     border: 2px solid rgba(255,255,255,0.25);
     touch-action: none; z-index: 15; display: none;
+    transform: translate(-50%, -50%);
   }
   #joystickKnob {
-    position: absolute; left: 35px; top: 35px; width: 40px; height: 40px;
+    position: absolute; left: 55px; top: 55px; width: 40px; height: 40px;
     border-radius: 50%; background: rgba(255,255,255,0.45);
     border: 2px solid rgba(255,255,255,0.6);
     pointer-events: none;
+    transform: translate(-50%, -50%);
   }
   /* 리더보드 */
   #leaderboardWrap { display: none; width: 90%; max-width: 340px; margin-top: 10px; }
+  /* BGM/효과음 토글 버튼 */
+  #audioControls {
+    position: fixed; top: 58px; right: 10px; z-index: 16;
+    display: flex; gap: 6px; pointer-events: auto;
+  }
+  #audioControls button {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0.9;
+  }
+  #audioControls button.muted { opacity: 0.4; }
   #leaderboardWrap h3 { color: #ffd54f; text-align: center; margin-bottom: 8px; }
   #leaderboardList {
     list-style: none; padding: 0; margin: 0;
@@ -143,7 +178,12 @@
 
 <canvas id="gameCanvas"></canvas>
 
+<div id="touchZone"></div>
 <div id="joystickBase"><div id="joystickKnob"></div></div>
+<div id="audioControls">
+  <button id="bgmToggleBtn" title="배경음악 켬/끔">🎵</button>
+  <button id="sfxToggleBtn" title="효과음 켬/끔">🔊</button>
+</div>
 
 <div id="rouletteModal">
   <h2>🐾 야생 동물을 만났다!</h2>
@@ -325,47 +365,57 @@ function startBgm() {
 // ---------- 입력 ----------
 const keys = {};
 
-// ---------- 모바일 가상 조이스틱 ----------
+// ---------- 모바일 가상 조이스틱 (화면 어디든 터치한 지점에서 조작) ----------
 const joystickVec = { x: 0, y: 0 };
+const touchZone = document.getElementById('touchZone');
 const joystickBase = document.getElementById('joystickBase');
 const joystickKnob = document.getElementById('joystickKnob');
 let joystickPointerId = null;
-const JOY_RADIUS = 42;
+let joystickCenter = { x: 0, y: 0 };
+const JOY_RADIUS = 55;
 
 function isTouchDevice() {
   return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 }
 if (isTouchDevice()) {
-  joystickBase.style.display = 'block';
+  touchZone.style.display = 'block';
 }
 
+function joystickShowAt(x, y) {
+  joystickCenter.x = x; joystickCenter.y = y;
+  joystickBase.style.left = x + 'px';
+  joystickBase.style.top = y + 'px';
+  joystickBase.style.display = 'block';
+  joystickKnob.style.left = '55px';
+  joystickKnob.style.top = '55px';
+}
 function joystickSetFromEvent(e) {
-  const rect = joystickBase.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  let dx = e.clientX - cx;
-  let dy = e.clientY - cy;
+  let dx = e.clientX - joystickCenter.x;
+  let dy = e.clientY - joystickCenter.y;
   const len = Math.hypot(dx, dy);
   if (len > JOY_RADIUS) {
     dx = (dx / len) * JOY_RADIUS;
     dy = (dy / len) * JOY_RADIUS;
   }
-  joystickKnob.style.left = (35 + dx) + 'px';
-  joystickKnob.style.top = (35 + dy) + 'px';
+  joystickKnob.style.left = (55 + dx) + 'px';
+  joystickKnob.style.top = (55 + dy) + 'px';
   joystickVec.x = dx / JOY_RADIUS;
   joystickVec.y = dy / JOY_RADIUS;
 }
 function joystickReset() {
   joystickVec.x = 0; joystickVec.y = 0;
-  joystickKnob.style.left = '35px';
-  joystickKnob.style.top = '35px';
+  joystickBase.style.display = 'none';
 }
-joystickBase.addEventListener('pointerdown', (e) => {
+touchZone.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  // 게임오버/시작/레벨업/룰렛 모달이 열려있을 땐 조이스틱 비활성화
+  if (!running) return;
   joystickPointerId = e.pointerId;
-  joystickBase.setPointerCapture(e.pointerId);
+  touchZone.setPointerCapture(e.pointerId);
+  joystickShowAt(e.clientX, e.clientY);
   joystickSetFromEvent(e);
 });
-joystickBase.addEventListener('pointermove', (e) => {
+touchZone.addEventListener('pointermove', (e) => {
   if (e.pointerId !== joystickPointerId) return;
   joystickSetFromEvent(e);
 });
@@ -374,9 +424,8 @@ function joystickEnd(e) {
   joystickPointerId = null;
   joystickReset();
 }
-joystickBase.addEventListener('pointerup', joystickEnd);
-joystickBase.addEventListener('pointercancel', joystickEnd);
-joystickBase.addEventListener('pointerleave', (e) => { if (joystickPointerId === null) joystickReset(); });
+touchZone.addEventListener('pointerup', joystickEnd);
+touchZone.addEventListener('pointercancel', joystickEnd);
 
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -701,31 +750,43 @@ function fireWeapon(w) {
           hitAny = true;
           if (w.knockback) {
             const a = Math.atan2(e.y - player.y, e.x - player.x);
-            e.x += Math.cos(a) * 20;
-            e.y += Math.sin(a) * 20;
+            e.x += Math.cos(a) * 10;
+            e.y += Math.sin(a) * 10;
           }
         }
       }
     }
     if (hitAny) playHitSound();
     w.justFired = true;
-    // 발동 순간에만 잠깐 나타나는 펄스 링 (상시 표시되는 반투명 원 제거 - 다른 이펙트가 뿌옇게 겹쳐 보이던 문제 해결)
-    let pulseColor = 'rgba(255,255,255,0.5)';
-    if (w.key === 'geojedaughter') pulseColor = 'rgba(255,182,193,0.6)';
-    else if (w.key === 'stopit') pulseColor = 'rgba(200,255,120,0.6)';
-    else if (w.key === 'chopstick') pulseColor = 'rgba(255,220,120,0.6)';
-    aoeFx.push({ x: player.x, y: player.y, radius: range, life: 0.18, maxLife: 0.18, color: pulseColor });
 
     if (w.key === 'chopstick') {
-      const fxCount = 8;
+      // 젓가락은 펄스링 없이, 가장 가까운 적 방향(없으면 캐릭터가 보는 방향)으로 발사
+      let aimAngle;
+      let nearest = null, nd = Infinity;
+      for (const e of enemies) {
+        const d = dist(e, player);
+        if (d < nd) { nd = d; nearest = e; }
+      }
+      if (nearest) {
+        aimAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+      } else {
+        aimAngle = (player.facing || 1) > 0 ? 0 : Math.PI;
+      }
+      const fxCount = 3;
       for (let i = 0; i < fxCount; i++) {
-        const a = (i / fxCount) * Math.PI * 2 + rand(-0.15, 0.15);
+        const a = aimAngle + (i - 1) * 0.18;
         chopstickFx.push({
           x: player.x, y: player.y,
-          vx: Math.cos(a) * 420, vy: Math.sin(a) * 420,
-          life: 0.4, maxLife: 0.4
+          vx: Math.cos(a) * 520, vy: Math.sin(a) * 520,
+          life: 0.32, maxLife: 0.32
         });
       }
+    } else {
+      // 발동 순간에만 잠깐 나타나는 펄스 링 (상시 표시되는 반투명 원 제거 - 다른 이펙트가 뿌옇게 겹쳐 보이던 문제 해결)
+      let pulseColor = 'rgba(255,255,255,0.5)';
+      if (w.key === 'geojedaughter') pulseColor = 'rgba(255,182,193,0.6)';
+      else if (w.key === 'stopit') pulseColor = 'rgba(200,255,120,0.6)';
+      aoeFx.push({ x: player.x, y: player.y, radius: range, life: 0.18, maxLife: 0.18, color: pulseColor });
     }
 
   } else if (w.type === 'throw') {
@@ -820,7 +881,7 @@ function openLevelUp() {
     } else {
       icon = opt.base.icon; name = opt.base.name; desc = opt.base.desc;
     }
-    card.innerHTML = `<div class="icon">${icon}</div><div class="name">${name}</div><div class="desc">${desc}</div>`;
+    card.innerHTML = `<div class="icon">${icon}</div><div class="textWrap"><div class="name">${name}</div><div class="desc">${desc}</div></div>`;
     card.onclick = () => { applyChoice(opt); closeLevelUp(); };
     row.appendChild(card);
     cardEls.push(card);
@@ -1014,7 +1075,7 @@ function render() {
 
   // 적
   for (const e of enemies) {
-    const eh = e.r * 2.6;
+    const eh = e.r * 3.3;
     const curImg = e.facingUp ? enemyBackImg : enemyImg;
     const curRatio = e.facingUp ? ENEMY_BACK_IMG_RATIO : ENEMY_IMG_RATIO;
     const ew = eh * curRatio;
@@ -1106,45 +1167,50 @@ function endGame() {
   document.getElementById('gameOverModal').style.display = 'flex';
 }
 
-// ---------- 리더보드 (localStorage 저장) ----------
-const LEADERBOARD_KEY = 'baekjeAttackLeaderboard';
-function loadLeaderboard() {
-  try {
-    const raw = localStorage.getItem(LEADERBOARD_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) { return []; }
-}
-function saveLeaderboard(list) {
-  try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
-}
-function renderLeaderboard(highlightIndex) {
-  const list = loadLeaderboard();
+// ---------- 리더보드 (Firestore 연동, module 스크립트의 window.fb* 함수 사용) ----------
+async function renderLeaderboard(highlightEntry) {
   const listEl = document.getElementById('leaderboardList');
+  listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
+  if (!window.fbLoadTop20) {
+    listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
+    return;
+  }
+  const list = await window.fbLoadTop20();
   listEl.innerHTML = '';
-  list.slice(0, 20).forEach((entry, i) => {
+  if (!list.length) {
+    listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
+    return;
+  }
+  list.forEach((entry, i) => {
     const li = document.createElement('li');
-    if (i === highlightIndex) li.className = 'me';
+    if (highlightEntry && entry.name === highlightEntry.name &&
+        entry.score === highlightEntry.score && entry.time === highlightEntry.time) {
+      li.className = 'me';
+    }
     li.innerHTML = `<span class="rank">${i + 1}위</span><span class="lname">${entry.name}</span><span class="lscore">${entry.score}</span>`;
     listEl.appendChild(li);
   });
-  if (!list.length) {
-    listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
-  }
 }
-function submitScore() {
+async function submitScore() {
   const nameInput = document.getElementById('nicknameInput');
   let name = nameInput.value.trim();
   if (!name) name = '익명의 리센느';
   name = name.slice(0, 10);
-  const list = loadLeaderboard();
-  list.push({ name, score: lastScore, level, kills: killCount, time: Math.floor(gameTime) });
-  list.sort((a, b) => b.score - a.score);
-  const trimmed = list.slice(0, 20);
-  saveLeaderboard(trimmed);
-  const myIndex = trimmed.findIndex(e => e.name === name && e.score === lastScore);
+  const btn = document.getElementById('submitScoreBtn');
+  btn.disabled = true;
+  btn.textContent = '등록 중...';
+  const entry = { name, score: lastScore, level, kills: killCount, time: Math.floor(gameTime) };
+  const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry) : false;
+  btn.disabled = false;
+  btn.textContent = '리더보드 등록';
   document.getElementById('nicknameEntry').style.display = 'none';
   document.getElementById('leaderboardWrap').style.display = 'block';
-  renderLeaderboard(myIndex);
+  if (!ok) {
+    document.getElementById('leaderboardList').innerHTML =
+      '<li style="justify-content:center; color:#e33;">등록 실패 (네트워크/설정을 확인해주세요)</li>';
+    return;
+  }
+  await renderLeaderboard(entry);
 }
 document.getElementById('submitScoreBtn').onclick = submitScore;
 document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
@@ -1153,6 +1219,56 @@ document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
 document.getElementById('playAgainBtn').onclick = initGame;
 
 document.getElementById('startBtn').onclick = () => { startBgm(); initGame(); };
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB7hwVcvAJ6YY76SylfQgVSUWi-T5BbgNI",
+    authDomain: "rescene-61ab9.firebaseapp.com",
+    projectId: "rescene-61ab9",
+    storageBucket: "rescene-61ab9.firebasestorage.app",
+    messagingSenderId: "87152811356",
+    appId: "1:87152811356:web:575bc1702c5e78b1563599",
+    measurementId: "G-TZQ8TV2SSS"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.fbSubmitScore = async function (entry) {
+    try {
+      await addDoc(collection(db, "leaderboard"), {
+        name: entry.name,
+        score: entry.score,
+        level: entry.level,
+        kills: entry.kills,
+        time: entry.time,
+        createdAt: serverTimestamp()
+      });
+      return true;
+    } catch (e) {
+      console.error("점수 등록 실패:", e);
+      return false;
+    }
+  };
+
+  window.fbLoadTop20 = async function () {
+    try {
+      const q = query(collection(db, "leaderboard"), orderBy("score", "desc"), limit(20));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      return list;
+    } catch (e) {
+      console.error("리더보드 조회 실패:", e);
+      return [];
+    }
+  };
 </script>
 </body>
 </html>
