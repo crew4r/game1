@@ -424,6 +424,15 @@ const ytTag = document.createElement('script');
 ytTag.src = 'https://www.youtube.com/iframe_api';
 document.head.appendChild(ytTag);
 
+function pickRandomVideoIndex(excludeIdx) {
+  if (YT_VIDEO_IDS.length <= 1) return 0;
+  let idx;
+  do {
+    idx = Math.floor(Math.random() * YT_VIDEO_IDS.length);
+  } while (idx === excludeIdx);
+  return idx;
+}
+
 window.onYouTubeIframeAPIReady = function () {
   ytPlayer = new YT.Player('ytPlayer', {
     height: '90',
@@ -433,22 +442,23 @@ window.onYouTubeIframeAPIReady = function () {
       onReady: (e) => {
         ytReady = true;
         e.target.setVolume(12); // 효과음과 비슷하거나 작은 수준
-        e.target.cuePlaylist({ playlist: YT_VIDEO_IDS, index: 0 });
+        const startIdx = pickRandomVideoIndex(-1);
+        e.target.cuePlaylist({ playlist: YT_VIDEO_IDS, index: startIdx });
         if (ytPendingPlay) { e.target.playVideo(); ytPendingPlay = false; }
       },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.ENDED) {
-          // 재생목록 끝까지 돌면 다시 처음부터 (전체 반복)
+          // 곡이 끝나면 랜덤 순서로 다음 곡 재생 (전체 무한 반복)
           const idx = ytPlayer.getPlaylistIndex();
-          const next = (idx + 1) % YT_VIDEO_IDS.length;
+          const next = pickRandomVideoIndex(idx);
           ytPlayer.playVideoAt(next);
         }
       },
       onError: (e) => {
-        // 임베드 금지 등으로 재생 불가한 영상은 건너뛰고 다음 곡 재생
+        // 임베드 금지 등으로 재생 불가한 영상은 건너뛰고 랜덤한 다음 곡 재생
         console.warn('유튜브 재생 오류(임베드 제한 가능성), 코드:', e.data, '→ 다음 곡으로 이동');
         const idx = ytPlayer.getPlaylistIndex();
-        const next = (idx + 1) % YT_VIDEO_IDS.length;
+        const next = pickRandomVideoIndex(idx);
         ytPlayer.playVideoAt(next);
       }
     }
@@ -593,7 +603,7 @@ const WEAPON_POOL = [
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 70, throwRange: 260, flightTime: 0.5 },
   { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개',    type: 'orbit', dmg: 5,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 2.4 },
   { key: 'stopit',        name: '그만 좀 봅시다', icon: '✋', desc: '근접 적 밀치기 + 피해',       type: 'aoe',   dmg: 3,  cd: 0.4, range: 60, knockback: true },
-  { key: 'chopstick',     name: '에디슨젓가락',   icon: '🥢', desc: '주변 범위 공격',              type: 'aoe',   dmg: 12, cd: 0.9, range: 90 },
+  { key: 'chopstick',     name: '에디슨젓가락',   icon: '🥢', desc: '근접 부채꼴 샷건 다수 공격 + 넉백', type: 'aoe',   dmg: 15, cd: 0.9, range: 80, knockback: true },
   { key: 'geojedaughter', name: '거제의 딸',      icon: '👶', desc: '주변 적 이동속도 감소(피해 없음)', type: 'aoe',   dmg: 0,  cd: 0.5, range: 70 },
 ];
 const PASSIVE_POOL = [
@@ -628,7 +638,7 @@ function initGame() {
   chopstickFx = [];
   aoeFx = [];
   companion = null;
-  companionSpawnTimer = rand(90, 120);
+  companionSpawnTimer = 120; // 2분마다 등장
   camera = { x: 0, y: 0 };
   gameTime = 0;
   killCount = 0;
@@ -728,7 +738,7 @@ function update(dt) {
     if (dist(companion, player) < companion.r + player.r) {
       triggerCompanionRoulette(companion.key);
       companion = null;
-      companionSpawnTimer = rand(90, 120);
+      companionSpawnTimer = 120; // 2분마다 등장
     }
   }
 
@@ -860,10 +870,8 @@ function update(dt) {
   }
   particles = particles.filter(p => p.life > 0);
 
-  // 에디슨젓가락 발사 이펙트
-  for (const f of chopstickFx) {
-    f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt;
-  }
+  // 에디슨젓가락 스와이프 이펙트
+  for (const f of chopstickFx) f.life -= dt;
   chopstickFx = chopstickFx.filter(f => f.life > 0);
 
   // aoe 발동 펄스 이펙트
@@ -898,32 +906,8 @@ function fireWeapon(w) {
     }
 
   } else if (w.type === 'aoe') {
-    // 그만 좀 봅시다 / 에디슨젓가락: 범위 즉시 피해, 거제의 딸: 피해 없이 슬로우
-    const range = w.range;
-    let hitAny = false;
-    for (const e of enemies) {
-      if (dist(e, player) < range) {
-        if (w.key === 'geojedaughter') {
-          e.slowTimer = 1.2;
-          e.slowFactor = 0.45;
-          spawnParticles(e.x, e.y, '#90caf9', 2);
-        } else {
-          e.hp -= dmg;
-          spawnParticles(e.x, e.y, '#fc5', 3);
-          hitAny = true;
-          if (w.knockback) {
-            const a = Math.atan2(e.y - player.y, e.x - player.x);
-            e.x += Math.cos(a) * 10;
-            e.y += Math.sin(a) * 10;
-          }
-        }
-      }
-    }
-    if (hitAny) playHitSound();
-    w.justFired = true;
-
     if (w.key === 'chopstick') {
-      // 젓가락은 펄스링 없이, 가장 가까운 적 방향(없으면 캐릭터가 보는 방향)으로 발사
+      // 에디슨젓가락: 샷건처럼 근접 부채꼴 범위 다수 공격 + 피격 시 넉백
       let aimAngle;
       let nearest = null, nd = Infinity;
       for (const e of enemies) {
@@ -935,17 +919,60 @@ function fireWeapon(w) {
       } else {
         aimAngle = (player.facing || 1) > 0 ? 0 : Math.PI;
       }
-      const fxCount = 3;
-      for (let i = 0; i < fxCount; i++) {
-        const a = aimAngle + (i - 1) * 0.18;
-        chopstickFx.push({
-          x: player.x, y: player.y,
-          vx: Math.cos(a) * 520, vy: Math.sin(a) * 520,
-          life: 0.32, maxLife: 0.32
-        });
+      const coneHalf = Math.PI / 3.2; // 부채꼴 절반각(약 56도, 총 약 112도)
+      let hitAny = false;
+      for (const e of enemies) {
+        const d = dist(e, player);
+        if (d >= w.range) continue;
+        const angToE = Math.atan2(e.y - player.y, e.x - player.x);
+        let diff = Math.abs(angToE - aimAngle);
+        if (diff > Math.PI) diff = Math.PI * 2 - diff;
+        if (diff <= coneHalf) {
+          e.hp -= dmg;
+          spawnParticles(e.x, e.y, '#fc5', 3);
+          hitAny = true;
+          const push = 18; // 샷건형이라 그만좀봅시다보다 넉백을 좀 더 세게
+          e.x += Math.cos(angToE) * push;
+          e.y += Math.sin(angToE) * push;
+        }
       }
+      if (hitAny) playHitSound();
+      w.justFired = true;
+
+      // 부채꼴 범위 내에서 스와이프(휘두르기)하는 이펙트
+      chopstickFx.push({
+        x: player.x, y: player.y,
+        startAngle: aimAngle - coneHalf,
+        endAngle: aimAngle + coneHalf,
+        radius: w.range,
+        life: 0.22, maxLife: 0.22
+      });
     } else {
-      // 발동 순간에만 잠깐 나타나는 펄스 링 (상시 표시되는 반투명 원 제거 - 다른 이펙트가 뿌옇게 겹쳐 보이던 문제 해결)
+      // 그만 좀 봅시다: 범위 즉시 피해+밀치기, 거제의 딸: 피해 없이 슬로우
+      const range = w.range;
+      let hitAny = false;
+      for (const e of enemies) {
+        if (dist(e, player) < range) {
+          if (w.key === 'geojedaughter') {
+            e.slowTimer = 1.2;
+            e.slowFactor = 0.45;
+            spawnParticles(e.x, e.y, '#90caf9', 2);
+          } else {
+            e.hp -= dmg;
+            spawnParticles(e.x, e.y, '#fc5', 3);
+            hitAny = true;
+            if (w.knockback) {
+              const a = Math.atan2(e.y - player.y, e.x - player.x);
+              e.x += Math.cos(a) * 10;
+              e.y += Math.sin(a) * 10;
+            }
+          }
+        }
+      }
+      if (hitAny) playHitSound();
+      w.justFired = true;
+
+      // 발동 순간에만 잠깐 나타나는 펄스 링
       let pulseColor = 'rgba(255,255,255,0.5)';
       if (w.key === 'geojedaughter') pulseColor = 'rgba(255,182,193,0.6)';
       else if (w.key === 'stopit') pulseColor = 'rgba(200,255,120,0.6)';
@@ -1155,12 +1182,12 @@ function applyChoice(opt) {
   if (opt.type === 'upgrade') {
     const w = opt.weapon;
     w.level++;
-    w.dmg = Math.round(w.dmg * 1.25 * 10) / 10;
-    if (w.cd) w.cd = Math.max(0.12, w.cd * 0.92);
+    w.dmg = Math.round(w.dmg * 1.35 * 10) / 10;
+    if (w.cd) w.cd = Math.max(0.1, w.cd * 0.88);
     if (w.count) w.count++;
-    if (w.range) w.range *= 1.12;
-    if (w.radius) w.radius *= 1.12;
-    if (w.orbitRadius) w.orbitRadius *= 1.05;
+    if (w.range) w.range *= 1.16;
+    if (w.radius) w.radius *= 1.16;
+    if (w.orbitRadius) w.orbitRadius *= 1.08;
   } else if (opt.type === 'new') {
     weapons.push({ ...opt.base, level: 1, timer: 0, angle: 0 });
   } else if (opt.type === 'passive') {
@@ -1269,15 +1296,35 @@ function render() {
     }
   }
 
-  // 에디슨젓가락 발사 이펙트
+  // 에디슨젓가락 스와이프 이펙트 (부채꼴 범위 내를 휘두르는 궤적 + 젓가락 아이콘)
   for (const f of chopstickFx) {
+    const p = Math.min(1, (1 - f.life / f.maxLife) * 1.3);
+    const curAngle = f.startAngle + (f.endAngle - f.startAngle) * p;
+    const alpha = Math.max(0, f.life / f.maxLife);
+
     ctx.save();
-    ctx.globalAlpha = Math.max(0, f.life / f.maxLife);
-    ctx.font = '18px sans-serif';
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(f.x + ox, f.y + oy);
+    ctx.arc(f.x + ox, f.y + oy, f.radius, f.startAngle, curAngle, false);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,220,120,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,220,120,0.55)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // 스와이프 궤적을 따라가는 젓가락 아이콘
+    const iconX = f.x + Math.cos(curAngle) * f.radius * 0.85;
+    const iconY = f.y + Math.sin(curAngle) * f.radius * 0.85;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = '22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.translate(f.x + ox, f.y + oy);
-    ctx.rotate(Math.atan2(f.vy, f.vx));
+    ctx.translate(iconX + ox, iconY + oy);
+    ctx.rotate(curAngle + Math.PI / 2);
     ctx.fillText('🥢', 0, 0);
     ctx.restore();
   }
