@@ -1315,17 +1315,35 @@ function render() {
     ctx.stroke();
     ctx.restore();
 
-    // 스와이프 궤적을 따라가는 젓가락 아이콘
-    const iconX = f.x + Math.cos(curAngle) * f.radius * 0.85;
-    const iconY = f.y + Math.sin(curAngle) * f.radius * 0.85;
+    // 부채꼴을 스와이프하는 젓가락 한짝 (직접 그린 막대 형태)
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = '22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.translate(iconX + ox, iconY + oy);
-    ctx.rotate(curAngle + Math.PI / 2);
-    ctx.fillText('🥢', 0, 0);
+    ctx.translate(f.x + ox, f.y + oy);
+    ctx.rotate(curAngle);
+    const stickLen = f.radius * 0.95;
+    const stickW = 7;
+    const grad = ctx.createLinearGradient(0, 0, stickLen, 0);
+    grad.addColorStop(0, '#f3ddb0');
+    grad.addColorStop(1, '#c9a06a');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(0, -stickW / 2, stickLen, stickW, stickW / 2);
+    } else {
+      ctx.rect(0, -stickW / 2, stickLen, stickW);
+    }
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,90,50,0.6)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // 뾰족한 끝
+    ctx.beginPath();
+    ctx.moveTo(stickLen, -stickW / 2);
+    ctx.lineTo(stickLen + 9, 0);
+    ctx.lineTo(stickLen, stickW / 2);
+    ctx.closePath();
+    ctx.fillStyle = '#c9a06a';
+    ctx.fill();
     ctx.restore();
   }
 
