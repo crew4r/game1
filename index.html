@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>리센느의 백제어택</title>
 <style>
   html, body {
@@ -519,6 +520,7 @@ if (isTouchDevice()) {
 const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 600;
 const MOBILE_CHAR_SCALE = 0.75;
 const MOBILE_ZOOM = 0.55; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임
+const MAX_ENEMIES = isMobileLayout ? 120 : 220; // 동시 생존 개체수 상한 (렉 방지)
 
 function joystickShowAt(x, y) {
   joystickCenter.x = x; joystickCenter.y = y;
@@ -783,8 +785,11 @@ function update(dt) {
   const spawnInterval = Math.max(0.32, 1.2 - gameTime / 70);
   if (spawnTimer <= 0) {
     spawnTimer = spawnInterval;
-    const burst = 1 + Math.floor(gameTime / 60);
-    for (let i = 0; i < burst; i++) spawnEnemy();
+    const burst = Math.min(8, 1 + Math.floor(gameTime / 60)); // 버스트 상한 (무한 증가 방지)
+    for (let i = 0; i < burst; i++) {
+      if (enemies.length >= MAX_ENEMIES) break; // 동시 생존 개체수 상한 (렉 방지)
+      spawnEnemy();
+    }
   }
 
   // 적 이동 & 플레이어 충돌
@@ -1056,8 +1061,10 @@ function fireWeapon(w) {
   }
 }
 
+const MAX_PARTICLES = 260;
 function spawnParticles(x, y, color, n) {
   for (let i = 0; i < n; i++) {
+    if (particles.length >= MAX_PARTICLES) particles.shift(); // 상한 초과 시 오래된 것부터 제거
     const a = rand(0, Math.PI * 2);
     const spd = rand(30, 120);
     particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: rand(0.2, 0.5), color });
@@ -1442,13 +1449,17 @@ function render() {
     }
   }
 
-  // 적
+  // 적 (화면 밖 개체는 그리기만 생략 - 이동/충돌 로직은 그대로 유지)
+  const enemyCullMargin = 60;
   for (const e of enemies) {
+    const ex = e.x + ox, ey = e.y + oy;
+    if (ex < -enemyCullMargin || ex > canvas.width + enemyCullMargin ||
+        ey < -enemyCullMargin || ey > canvas.height + enemyCullMargin) continue;
+
     const eh = e.r * 3.3 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
     const curImg = e.facingUp ? enemyBackImg : enemyImg;
     const curRatio = e.facingUp ? ENEMY_BACK_IMG_RATIO : ENEMY_IMG_RATIO;
     const ew = eh * curRatio;
-    const ex = e.x + ox, ey = e.y + oy;
     if (curImg.complete && curImg.naturalWidth) {
       ctx.save();
       ctx.translate(ex, ey);
