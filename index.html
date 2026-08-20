@@ -18,13 +18,60 @@
     pointer-events: none;
   }
   #hpBarWrap, #xpBarWrap {
-    background: #222; border: 2px solid #555; border-radius: 6px;
-    height: 18px; overflow: hidden;
+    position: relative;
+    background: rgba(18,18,26,0.65);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 3px rgba(0,0,0,0.55);
   }
-  #hpBarWrap { width: 220px; }
-  #xpBarWrap { width: 100%; margin-top: 4px; height: 10px; }
-  #hpBar { background: linear-gradient(#e33, #a11); height: 100%; width: 100%; transition: width .2s; }
-  #xpBar { background: linear-gradient(#3cf, #06a); height: 100%; width: 0%; transition: width .2s; }
+  #hpBarWrap { width: 220px; height: 20px; }
+  #xpBarWrap { width: 100%; margin-top: 6px; height: 10px; }
+  #hpBar, #xpBar {
+    position: relative; height: 100%; border-radius: 999px;
+    transition: width .25s ease-out;
+  }
+  #hpBar {
+    width: 100%;
+    background: linear-gradient(180deg, #ff7b7b 0%, #e73333 45%, #ad1f1f 100%);
+    box-shadow: 0 0 10px rgba(255,60,60,0.55);
+  }
+  #xpBar {
+    width: 0%;
+    background: linear-gradient(180deg, #8fe8ff 0%, #2fa9f0 50%, #0b6bc4 100%);
+    box-shadow: 0 0 10px rgba(70,170,255,0.6);
+  }
+  #hpBar::after, #xpBar::after {
+    content: ''; position: absolute; top: 1px; left: 4px; right: 4px; height: 42%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
+    border-radius: 999px; pointer-events: none;
+  }
+  #hpText {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .3px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    pointer-events: none;
+  }
+  @keyframes hpLowPulse {
+    0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 3px rgba(0,0,0,0.55), 0 0 0 rgba(255,30,30,0); }
+    50% { box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 3px rgba(0,0,0,0.55), 0 0 16px rgba(255,30,30,0.85); }
+  }
+  #hpBarWrap.low-hp { animation: hpLowPulse 0.9s ease-in-out infinite; }
+  #lowHpFlash {
+    position: fixed; inset: 0; background: rgba(255,60,60,0.32);
+    opacity: 0; pointer-events: none; z-index: 50;
+  }
+  #lowHpFlash.flash { animation: lowHpFlashAnim 1s ease-in-out; }
+  @keyframes lowHpFlashAnim {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    28%  { opacity: 0; }
+    45%  { opacity: 1; }
+    62%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
   #topLeft { pointer-events: none; }
   #topRight {
     position: fixed; right: 10px; bottom: 34px;
@@ -206,6 +253,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
+<div id="lowHpFlash"></div>
 
 <div id="touchZone"></div>
 <div id="joystickBase"><div id="joystickKnob"></div></div>
@@ -218,7 +266,7 @@
 
 <div id="ui">
   <div id="topLeft">
-    <div id="hpBarWrap"><div id="hpBar"></div></div>
+    <div id="hpBarWrap"><div id="hpBar"></div><div id="hpText">100/100</div></div>
   </div>
 </div>
 <div id="topRight">
@@ -506,7 +554,7 @@ function playCompanionVoice(key) {
     const source = ctx.createBufferSource();
     source.buffer = companionVoiceBuffers[key];
     const gain = ctx.createGain();
-    gain.gain.value = 0.9;
+    gain.gain.value = 0.81; // 기존(0.9) 대비 10% 감소
     source.connect(gain);
     gain.connect(ctx.destination);
     source.start();
@@ -727,7 +775,7 @@ const WEAPON_POOL = [
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 88, throwRange: 260, flightTime: 0.5 },
   { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개',    type: 'orbit', dmg: 4,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 2.4 },
   { key: 'stopit',        name: '그만 좀 봅시다', icon: '✋', desc: '근접 적 밀치기 + 피해',       type: 'aoe',   dmg: 3,  cd: 0.4, range: 60, knockback: true },
-  { key: 'chopstick',     name: '에디슨젓가락',   icon: '🥢', desc: '근접 부채꼴 샷건 다수 공격', type: 'aoe',   dmg: 15, cd: 0.9, range: 80 },
+  { key: 'chopstick',     name: '에디슨젓가락',   icon: '🥢', desc: '근접 부채꼴 샷건 다수 공격', type: 'aoe',   dmg: 11, cd: 0.9, range: 80 },
   { key: 'geojedaughter', name: '거제의 딸',      icon: '👶', desc: '주변 적 이동속도 감소 + 약한 피해', type: 'aoe',   dmg: 2,  cd: 0.5, range: 70 },
 ];
 const PASSIVE_POOL = [
@@ -753,6 +801,7 @@ function initGame() {
     dmgMult: 1,
     luck: 1,
     specialInvulnTimer: 0,
+    wasLowHp: false,
   };
   enemies = [];
   bullets = [];
@@ -789,12 +838,15 @@ function enemyStatsForTime(t) {
   const baseSpeed = 60 + tier * 6;
   let hp = 12 + tier * 10;
   let dmg = 6 + tier * 2;
+  let xpVal = 2 + tier;
   // 티어가 3분(180초)에서 최대치로 고정된 뒤에도, 장기 플레이가 계속 팽팽하도록
-  // 시간에 비례해 완만하게 추가 성장시킴 (1분마다 약 +8%)
+  // 시간에 비례해 완만하게 추가 성장시킴 (1분마다 약 +8%) - 경험치 보상도 동일하게 적용해서
+  // 후반부에 몹은 세지는데 경험치는 그대로인 문제를 방지
   if (t > 180) {
     const growth = 1 + ((t - 180) / 60) * 0.08;
     hp = Math.round(hp * growth);
     dmg = Math.round(dmg * growth);
+    xpVal = Math.round(xpVal * growth);
   }
   return {
     hp,
@@ -802,7 +854,7 @@ function enemyStatsForTime(t) {
     dmg,
     r: 12,
     color: `hsl(${0 + tier * 8}, 70%, 50%)`,
-    xp: 2 + tier,
+    xp: xpVal,
   };
 }
 
@@ -957,7 +1009,21 @@ function update(dt) {
     spawnTimer = spawnInterval;
     const burst = Math.min(8, 1 + Math.floor(gameTime / 60)); // 버스트 상한 (무한 증가 방지)
     for (let i = 0; i < burst; i++) {
-      if (enemies.length >= MAX_ENEMIES) break; // 동시 생존 개체수 상한 (렉 방지)
+      if (enemies.length >= MAX_ENEMIES) {
+        // 상한에 도달하면 스폰을 그냥 멈추는 대신, 플레이어에게서 가장 멀리 뒤처진
+        // 일반 몹을 정리하고 그 자리에 새로 스폰함 (한쪽으로 도망가도 앞쪽이 계속 채워짐)
+        let farthestIdx = -1, farthestDist = -1;
+        for (let j = 0; j < enemies.length; j++) {
+          if (enemies[j].isElite) continue;
+          const d = dist(enemies[j], player);
+          if (d > farthestDist) { farthestDist = d; farthestIdx = j; }
+        }
+        if (farthestIdx >= 0 && farthestDist > 500) {
+          enemies.splice(farthestIdx, 1);
+        } else {
+          break; // 정리할 만큼 멀리 있는 일반 몹도 없으면 진짜 꽉 찬 것이니 중단
+        }
+      }
       spawnEnemy();
     }
   }
@@ -1108,7 +1174,7 @@ function update(dt) {
 
   // 플레이어에게서 너무 멀리 뒤처진 적은 정리 (한쪽으로 도망갈 때, 뒤에 쌓인 적들이
   // 동시 생존 상한을 계속 차지해서 앞쪽에 새 적이 못 나오는 문제를 방지)
-  const ENEMY_DESPAWN_DIST = 2600;
+  const ENEMY_DESPAWN_DIST = 1800;
   enemies = enemies.filter(e => e.isElite || dist(e, player) < ENEMY_DESPAWN_DIST);
 
   // 경험치 구슬 자석 + 흡수
@@ -1155,6 +1221,16 @@ function update(dt) {
 
   // UI 갱신
   document.getElementById('hpBar').style.width = Math.max(0, player.hp / player.maxHp * 100) + '%';
+  document.getElementById('hpText').textContent = `${Math.max(0, Math.round(player.hp))}/${Math.round(player.maxHp)}`;
+  const isLowHp = player.hp / player.maxHp < 0.3;
+  document.getElementById('hpBarWrap').classList.toggle('low-hp', isLowHp);
+  if (isLowHp && !player.wasLowHp) {
+    const flashEl = document.getElementById('lowHpFlash');
+    flashEl.classList.remove('flash');
+    void flashEl.offsetWidth; // 리플로우 강제 - 애니메이션 재시작 보장
+    flashEl.classList.add('flash');
+  }
+  player.wasLowHp = isLowHp;
   document.getElementById('xpBar').style.width = Math.max(0, xp / xpToNext * 100) + '%';
 
   if (player.hp <= 0) endGame();
