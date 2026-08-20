@@ -53,17 +53,19 @@
   .card .desc { font-size: 12px; color: #aaa; }
 
   /* 세로형 스마트폰 대응: 카드를 세로로 쌓고 글자 크게 */
-  @media (max-width: 480px) {
-    #levelUpModal h2 { font-size: 20px; margin-bottom: 6px; }
-    .cardRow { flex-direction: column; width: 100%; max-width: 340px; gap: 12px; }
+  @media (max-width: 600px) {
+    #levelUpModal h2 { font-size: 24px; margin-bottom: 10px; }
+    #levelUpModal p { font-size: 15px !important; }
+    .cardRow { flex-direction: column; width: 100%; max-width: 420px; gap: 14px; }
     .card {
       width: 100%; box-sizing: border-box;
       display: flex; align-items: center; text-align: left;
-      gap: 14px; padding: 14px 16px;
+      gap: 18px; padding: 20px 20px;
+      border-width: 3px;
     }
-    .card .icon { font-size: 34px; margin-bottom: 0; flex-shrink: 0; }
-    .card .name { font-size: 17px; margin-bottom: 4px; }
-    .card .desc { font-size: 14px; line-height: 1.35; }
+    .card .icon { font-size: 46px; margin-bottom: 0; flex-shrink: 0; }
+    .card .name { font-size: 20px; margin-bottom: 6px; }
+    .card .desc { font-size: 16px; line-height: 1.45; }
     .card .textWrap { display: flex; flex-direction: column; }
   }
   #gameOverModal {
@@ -123,14 +125,14 @@
     z-index: 12; touch-action: none; display: none;
   }
   #joystickBase {
-    position: fixed; width: 110px; height: 110px;
+    position: fixed; width: 55px; height: 55px;
     border-radius: 50%; background: rgba(255,255,255,0.12);
     border: 2px solid rgba(255,255,255,0.25);
     touch-action: none; z-index: 15; display: none;
     transform: translate(-50%, -50%);
   }
   #joystickKnob {
-    position: absolute; left: 55px; top: 55px; width: 40px; height: 40px;
+    position: absolute; left: 27px; top: 27px; width: 20px; height: 20px;
     border-radius: 50%; background: rgba(255,255,255,0.45);
     border: 2px solid rgba(255,255,255,0.6);
     pointer-events: none;
@@ -157,8 +159,18 @@
     width: 160px; height: 90px; z-index: 14;
     border-radius: 6px; overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    background: rgba(20,16,10,0.55);
     pointer-events: auto;
+    display: flex; align-items: center; justify-content: center;
   }
+  #ytPlayerWrap::before {
+    content: '♪ BGM 로딩중...';
+    position: absolute; color: rgba(255,255,255,0.5); font-size: 11px;
+    pointer-events: none;
+  }
+  #ytPlayerWrap.yt-hidden { display: none; }
+  #ytPlayerWrap.yt-active { background: transparent; }
+  #ytPlayerWrap.yt-active::before { content: none; }
   #leaderboardWrap h3 { color: #ffd54f; text-align: center; margin-bottom: 8px; }
   #leaderboardList {
     list-style: none; padding: 0; margin: 0;
@@ -184,28 +196,6 @@
     margin-top: 14px; padding: 10px 24px; font-size: 16px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
   }
-  /* 동물 캐릭터 룰렛 */
-  #rouletteModal {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
-    display: none; align-items: center; justify-content: center;
-    flex-direction: column; z-index: 25; text-align: center;
-  }
-  #rouletteModal h2 { color: #ffd54f; margin-bottom: 14px; }
-  #rouletteSlot {
-    font-size: 48px; height: 64px; display: flex; align-items: center; justify-content: center;
-    background: #1e1e2e; border: 2px solid #ffd54f; border-radius: 10px; width: 220px; margin-bottom: 16px;
-  }
-  #rouletteResult { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; max-width: 320px; }
-  #rouletteResult .rItem {
-    background: #1e1e2e; border: 2px solid #444; border-radius: 8px; padding: 10px; width: 90px;
-  }
-  #rouletteResult .rItem .icon { font-size: 26px; }
-  #rouletteResult .rItem .label { font-size: 11px; color: #ccc; margin-top: 4px; }
-  #rouletteContinueBtn {
-    margin-top: 8px; padding: 8px 22px; font-size: 14px; background: #ffd54f;
-    border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: none;
-  }
 </style>
 </head>
 <body>
@@ -219,13 +209,6 @@
   <button id="sfxToggleBtn" title="효과음 켬/끔">🔊</button>
 </div>
 <div id="ytPlayerWrap"><div id="ytPlayer"></div></div>
-
-<div id="rouletteModal">
-  <h2>🐾 야생 동물을 만났다!</h2>
-  <div id="rouletteSlot">❓</div>
-  <div id="rouletteResult"></div>
-  <button id="rouletteContinueBtn">계속하기</button>
-</div>
 
 
 <div id="ui">
@@ -441,6 +424,8 @@ window.onYouTubeIframeAPIReady = function () {
     events: {
       onReady: (e) => {
         ytReady = true;
+        const wrap = document.getElementById('ytPlayerWrap');
+        if (wrap) wrap.classList.add('yt-active');
         e.target.setVolume(12); // 효과음과 비슷하거나 작은 수준
         const startIdx = pickRandomVideoIndex(-1);
         e.target.cuePlaylist({ playlist: YT_VIDEO_IDS, index: startIdx });
@@ -464,6 +449,16 @@ window.onYouTubeIframeAPIReady = function () {
     }
   });
 };
+
+// 일부 모바일 인앱 브라우저(카카오톡/인스타그램 등)는 유튜브 iframe 자체를 차단하기도 함 →
+// 일정 시간 안에 로드되지 않으면 빈 박스로 남지 않도록 아예 숨김 처리
+setTimeout(() => {
+  if (!ytReady) {
+    const wrap = document.getElementById('ytPlayerWrap');
+    if (wrap) wrap.classList.add('yt-hidden');
+    console.warn('유튜브 플레이어 로드 실패 - BGM 없이 진행합니다 (효과음은 정상 작동).');
+  }
+}, 6000);
 
 function startBgm() {
   if (!bgmEnabled) return;
@@ -511,7 +506,7 @@ const joystickBase = document.getElementById('joystickBase');
 const joystickKnob = document.getElementById('joystickKnob');
 let joystickPointerId = null;
 let joystickCenter = { x: 0, y: 0 };
-const JOY_RADIUS = 55;
+const JOY_RADIUS = 27;
 
 function isTouchDevice() {
   return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
@@ -520,13 +515,18 @@ if (isTouchDevice()) {
   touchZone.style.display = 'block';
 }
 
+// 모바일 세로형 화면에서만 캐릭터를 더 크게 렌더링 (PC는 영향 없음)
+const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 600;
+const MOBILE_CHAR_SCALE = 0.75;
+const MOBILE_ZOOM = 0.55; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임
+
 function joystickShowAt(x, y) {
   joystickCenter.x = x; joystickCenter.y = y;
   joystickBase.style.left = x + 'px';
   joystickBase.style.top = y + 'px';
   joystickBase.style.display = 'block';
-  joystickKnob.style.left = '55px';
-  joystickKnob.style.top = '55px';
+  joystickKnob.style.left = '27px';
+  joystickKnob.style.top = '27px';
 }
 function joystickSetFromEvent(e) {
   let dx = e.clientX - joystickCenter.x;
@@ -536,8 +536,8 @@ function joystickSetFromEvent(e) {
     dx = (dx / len) * JOY_RADIUS;
     dy = (dy / len) * JOY_RADIUS;
   }
-  joystickKnob.style.left = (55 + dx) + 'px';
-  joystickKnob.style.top = (55 + dy) + 'px';
+  joystickKnob.style.left = (27 + dx) + 'px';
+  joystickKnob.style.top = (27 + dy) + 'px';
   joystickVec.x = dx / JOY_RADIUS;
   joystickVec.y = dy / JOY_RADIUS;
 }
@@ -593,7 +593,7 @@ window.addEventListener('keydown', (e) => {
 
 // ---------- 게임 상태 ----------
 let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx;
-let companion, companionSpawnTimer;
+let triggeredCompanions, floatingTexts;
 let gameTime, killCount, spawnTimer, running, lastTs;
 let weapons, level, xp, xpToNext;
 let levelUpChoices = [], levelUpCardEls = [], levelUpSelectedIndex = 0;
@@ -637,8 +637,8 @@ function initGame() {
   throws = [];
   chopstickFx = [];
   aoeFx = [];
-  companion = null;
-  companionSpawnTimer = 120; // 2분마다 등장
+  triggeredCompanions = new Set();
+  floatingTexts = [];
   camera = { x: 0, y: 0 };
   gameTime = 0;
   killCount = 0;
@@ -672,7 +672,10 @@ function enemyStatsForTime(t) {
 
 function spawnEnemy() {
   const angle = rand(0, Math.PI * 2);
-  const spawnDist = Math.max(canvas.width, canvas.height) / 2 + 60;
+  // 모바일에서는 줌아웃된 만큼 실제 보이는 범위가 넓어지므로 스폰 거리도 그만큼 늘려야
+  // 화면 바깥쪽(넓어진 시야) 링에도 적이 정상적으로 생성됨
+  const zoom = isMobileLayout ? MOBILE_ZOOM : 1;
+  const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 60;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
   const s = enemyStatsForTime(gameTime);
@@ -686,11 +689,38 @@ const ANIMAL_INFO = {
   seal:     { name: '물개',   img: () => animalImg_seal,     ratio: ANIMAL_RATIO_seal,     desc: '랜덤 스킬 획득 (최대 3개)' },
   bear:     { name: '다람쥐', img: () => animalImg_bear,     ratio: ANIMAL_RATIO_bear,     desc: '10초간 무적 + 황금빛 변신' },
 };
-function spawnCompanion() {
-  const angle = rand(0, Math.PI * 2);
-  const d = rand(260, 420);
-  const key = choice(ANIMAL_KEYS);
-  companion = { x: player.x + Math.cos(angle) * d, y: player.y + Math.sin(angle) * d, r: 16, key, bob: 0 };
+const ANIMAL_MESSAGES = {
+  elephant: '그립감이 좋다',
+  sheep: '너도? 아 나도!',
+  seal: '오이데~ 마떼루용',
+  bear: '아아니~',
+};
+
+// 동물 컴패니언은 맵 곳곳에 낮은 확률로 결정론적으로 배치 (해시 기반, 타이머 아님)
+const COMPANION_CELL = 480;
+function getCompanionAt(cx, cy) {
+  const h = hash2(cx * 7 + 3, cy * 13 + 9);
+  if (h > 0.03) return null; // 낮은 확률로만 배치
+  const jx = hash2(cx + 41, cy + 17);
+  const jy = hash2(cx + 17, cy + 41);
+  const wx = cx * COMPANION_CELL + COMPANION_CELL * 0.15 + jx * COMPANION_CELL * 0.7;
+  const wy = cy * COMPANION_CELL + COMPANION_CELL * 0.15 + jy * COMPANION_CELL * 0.7;
+  if (Math.hypot(wx, wy) < 260) return null; // 시작 지점 근처는 비워둠
+  const keyIdx = Math.floor(hash2(cx + 3, cy + 91) * ANIMAL_KEYS.length) % ANIMAL_KEYS.length;
+  const key = ANIMAL_KEYS[keyIdx];
+  return { cellKey: cx + ',' + cy, x: wx, y: wy, r: 18, key };
+}
+function getNearbyCompanions(x, y, margin) {
+  const list = [];
+  const c0x = Math.floor((x - margin) / COMPANION_CELL), c1x = Math.floor((x + margin) / COMPANION_CELL);
+  const c0y = Math.floor((y - margin) / COMPANION_CELL), c1y = Math.floor((y + margin) / COMPANION_CELL);
+  for (let cx = c0x; cx <= c1x; cx++) {
+    for (let cy = c0y; cy <= c1y; cy++) {
+      const c = getCompanionAt(cx, cy);
+      if (c && !triggeredCompanions.has(c.cellKey)) list.push(c);
+    }
+  }
+  return list;
 }
 
 // ---------- 업데이트 ----------
@@ -727,18 +757,24 @@ function update(dt) {
   camera.x = player.x;
   camera.y = player.y;
 
-  // 동물 컴패니언 스폰 및 충돌
-  if (!companion) {
-    companionSpawnTimer -= dt;
-    if (companionSpawnTimer <= 0) {
-      spawnCompanion();
-    }
-  } else {
-    companion.bob += dt;
-    if (dist(companion, player) < companion.r + player.r) {
-      triggerCompanionRoulette(companion.key);
-      companion = null;
-      companionSpawnTimer = 120; // 2분마다 등장
+  // 동물 컴패니언: 맵 곳곳에 배치된 것 중 가까이 간 경우 즉시 효과 발동
+  const nearCompanions = getNearbyCompanions(player.x, player.y, COMPANION_CELL * 1.5);
+  for (const c of nearCompanions) {
+    if (dist(c, player) < c.r + player.r) {
+      triggeredCompanions.add(c.cellKey);
+      const effectDesc = applyAnimalSkill(c.key);
+      floatingTexts.push({
+        x: c.x, y: c.y - 22, text: ANIMAL_MESSAGES[c.key],
+        life: 1.6, maxLife: 1.6, size: 16, color: '#ffd54f'
+      });
+      if (effectDesc) {
+        floatingTexts.push({
+          x: c.x, y: c.y - 2, text: effectDesc,
+          life: 1.8, maxLife: 1.8, size: 13, color: '#9be29b'
+        });
+      }
+      spawnParticles(c.x, c.y, '#ffd54f', 10);
+      break; // 한 프레임에 하나만 트리거
     }
   }
 
@@ -877,6 +913,10 @@ function update(dt) {
   // aoe 발동 펄스 이펙트
   for (const f of aoeFx) f.life -= dt;
   aoeFx = aoeFx.filter(f => f.life > 0);
+
+  // 컴패니언 플로팅 텍스트
+  for (const ft of floatingTexts) { ft.y -= 22 * dt; ft.life -= dt; }
+  floatingTexts = floatingTexts.filter(ft => ft.life > 0);
 
   // UI 갱신
   document.getElementById('hpBar').style.width = Math.max(0, player.hp / player.maxHp * 100) + '%';
@@ -1092,51 +1132,12 @@ function updateLevelUpSelection() {
 }
 
 // ---------- 동물 컴패니언 룰렛 ----------
-let rouletteSpinTimer = null;
-function triggerCompanionRoulette(landKey) {
-  running = false;
-  const modal = document.getElementById('rouletteModal');
-  const slot = document.getElementById('rouletteSlot');
-  const resultEl = document.getElementById('rouletteResult');
-  const continueBtn = document.getElementById('rouletteContinueBtn');
-  resultEl.innerHTML = '';
-  continueBtn.style.display = 'none';
-  modal.style.display = 'flex';
-
-  // 슬롯이 빠르게 돌다가 실제로 만난 동물에서 멈추는 연출
-  let spins = 0;
-  const maxSpins = 14;
-  rouletteSpinTimer = setInterval(() => {
-    spins++;
-    const key = spins < maxSpins ? choice(ANIMAL_KEYS) : landKey;
-    slot.textContent = ANIMAL_INFO[key].name;
-    if (spins >= maxSpins) {
-      clearInterval(rouletteSpinTimer);
-      finishCompanionRoulette(landKey);
-    }
-  }, 90);
-}
-
-function finishCompanionRoulette(key) {
-  const resultEl = document.getElementById('rouletteResult');
-  const continueBtn = document.getElementById('rouletteContinueBtn');
-  const info = ANIMAL_INFO[key];
-
-  const applied = applyAnimalSkill(key);
-
-  const item = document.createElement('div');
-  item.className = 'rItem';
-  item.innerHTML = `<div class="label" style="font-weight:bold; color:#ffd54f; margin-bottom:4px;">${info.name}</div><div class="label">${applied}</div>`;
-  resultEl.appendChild(item);
-  continueBtn.style.display = 'inline-block';
-}
-
 function applyAnimalSkill(key) {
   if (key === 'elephant') {
     const count = enemies.length;
     for (const e of enemies) spawnParticles(e.x, e.y, '#ffd54f', 6);
     enemies = [];
-    return `맵 위 백제자객 ${count}명 제거!`;
+    return `백제자객 ${count}명 제거!`;
   } else if (key === 'sheep') {
     let gained = 0;
     for (const g of gems) { xp += g.xp; gained += g.xp; }
@@ -1147,7 +1148,7 @@ function applyAnimalSkill(key) {
       xpToNext = Math.floor(xpToNext * 1.25 + 5);
       document.getElementById('levelText').textContent = 'Lv.' + level;
     }
-    return `경험치 ${gained} 즉시 획득!`;
+    return `경험치 ${gained} 획득!`;
   } else if (key === 'seal') {
     const pickCount = 1 + Math.floor(Math.random() * 3); // 1~3개
     const labels = [];
@@ -1161,22 +1162,15 @@ function applyAnimalSkill(key) {
       applyChoice(opt);
       if (opt.type === 'upgrade') labels.push(WEAPON_POOL.find(w => w.key === opt.weapon.key).name + ' 강화');
       else if (opt.type === 'new') labels.push(opt.base.name + ' 획득');
-      else labels.push(opt.base.name);
+      else labels.push(opt.base.name + ' 획득');
     }
-    return `${pickCount}개 획득: ${labels.join(', ')}`;
+    return labels.length ? labels.join(' / ') : '획득 가능한 스킬 없음';
   } else if (key === 'bear') {
     player.specialInvulnTimer = 10;
-    return '10초간 무적 + 황금빛 변신!';
+    return '10초 무적 + 황금빛 변신!';
   }
   return '';
 }
-
-document.getElementById('rouletteContinueBtn').onclick = () => {
-  document.getElementById('rouletteModal').style.display = 'none';
-  running = true;
-  lastTs = performance.now();
-  requestAnimationFrame(loop);
-};
 
 function applyChoice(opt) {
   if (opt.type === 'upgrade') {
@@ -1217,22 +1211,38 @@ function render() {
   ctx.fillStyle = '#5a4632';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  ctx.save();
+  if (isMobileLayout) {
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(MOBILE_ZOOM, MOBILE_ZOOM);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+  }
+
   const ox = canvas.width / 2 - camera.x;
   const oy = canvas.height / 2 - camera.y;
 
+  // 모바일에서는 줌아웃된 만큼 실제로 보이는 월드 범위가 넓어지므로, 그 배율을 반영해야 함
+  const viewZoom = isMobileLayout ? MOBILE_ZOOM : 1;
+  const viewHalfW = (canvas.width / 2) / viewZoom;
+  const viewHalfH = (canvas.height / 2) / viewZoom;
+
   // 흙바닥 텍스처 (월드 좌표 기반 결정론적 얼룩 패턴)
   const cell = 46;
-  const c0x = Math.floor((camera.x - canvas.width / 2) / cell) - 1;
-  const c1x = Math.floor((camera.x + canvas.width / 2) / cell) + 1;
-  const c0y = Math.floor((camera.y - canvas.height / 2) / cell) - 1;
-  const c1y = Math.floor((camera.y + canvas.height / 2) / cell) + 1;
+  const c0x = Math.floor((camera.x - viewHalfW) / cell) - 1;
+  const c1x = Math.floor((camera.x + viewHalfW) / cell) + 1;
+  const c0y = Math.floor((camera.y - viewHalfH) / cell) - 1;
+  const c1y = Math.floor((camera.y + viewHalfH) / cell) + 1;
   for (let cx = c0x; cx <= c1x; cx++) {
     for (let cy = c0y; cy <= c1y; cy++) {
       const h1 = hash2(cx, cy);
       const wx = cx * cell + hash2(cx + 3, cy + 8) * cell;
       const wy = cy * cell + hash2(cx + 8, cy + 3) * cell;
       const sx = wx + ox, sy = wy + oy;
-      if (sx < -30 || sx > canvas.width + 30 || sy < -30 || sy > canvas.height + 30) continue;
+      // 컷오프 조건도 줌 배율이 반영된 실제 가시 범위(화면 중심 ± viewHalf) 기준이어야 함
+      const cxScreenCenter = canvas.width / 2;
+      const cyScreenCenter = canvas.height / 2;
+      if (sx < cxScreenCenter - viewHalfW - 30 || sx > cxScreenCenter + viewHalfW + 30 ||
+          sy < cyScreenCenter - viewHalfH - 30 || sy > cyScreenCenter + viewHalfH + 30) continue;
       if (h1 < 0.34) {
         // 어두운 흙덩이
         ctx.fillStyle = `rgba(60,46,30,${0.25 + h1 * 0.4})`;
@@ -1255,7 +1265,7 @@ function render() {
   }
 
   // 장애물(바위/나무) 렌더링
-  const obsMargin = Math.max(canvas.width, canvas.height) / 2 + 80;
+  const obsMargin = Math.max(viewHalfW, viewHalfH) + 80;
   for (const o of getNearbyObstacles(camera.x, camera.y, obsMargin)) {
     const sx = o.x + ox, sy = o.y + oy;
     ctx.beginPath();
@@ -1266,6 +1276,24 @@ function render() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(o.icon, sx, sy);
+  }
+
+  // 동물 컴패니언 렌더링 (맵 곳곳에 배치, 둥실거리는 모션)
+  for (const c of getNearbyCompanions(camera.x, camera.y, obsMargin)) {
+    const info = ANIMAL_INFO[c.key];
+    const img = info.img();
+    const bob = Math.sin(gameTime * 2.4 + c.x * 0.01 + c.y * 0.01) * 5;
+    const ch = c.r * 3.2;
+    const cw = ch * info.ratio;
+    const sx = c.x + ox, sy = c.y + oy + bob;
+    // 은은한 발광
+    ctx.beginPath();
+    ctx.arc(sx, sy + ch * 0.25, ch * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,213,79,0.18)';
+    ctx.fill();
+    if (img.complete && img.naturalWidth) {
+      ctx.drawImage(img, sx - cw / 2, sy - ch / 2, cw, ch);
+    }
   }
 
   // 범위형(aoe) 무기 발동 펄스 이펙트 (상시 원이 아닌 발동 순간만 표시)
@@ -1347,16 +1375,42 @@ function render() {
     ctx.restore();
   }
 
-  // 오이쉬에(투척) 표시
+  // 오이쉬에(투척) 표시 - 이모지 대신 직접 그린 엄지척 도형 (기기별 이모지 폰트 렌더링 문제 회피)
   for (const th of throws) {
     const p = Math.min(1, th.t / th.duration);
     const x = th.x0 + (th.tx - th.x0) * p;
     const y = th.y0 + (th.ty - th.y0) * p;
     const height = Math.sin(p * Math.PI) * 60;
-    ctx.font = '24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(th.icon, x + ox, y + oy - height);
+    const size = 20 + height * 0.15;
+    const sx = x + ox, sy = y + oy - height;
+    const spin = p * Math.PI * 3; // 날아가는 동안 빙글빙글 회전
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(spin);
+    ctx.fillStyle = '#f2b46d';
+    ctx.strokeStyle = '#c9873f';
+    ctx.lineWidth = 1.5;
+    // 주먹 부분
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(-size * 0.32, -size * 0.12, size * 0.64, size * 0.46, size * 0.14);
+    } else {
+      ctx.rect(-size * 0.32, -size * 0.12, size * 0.64, size * 0.46);
+    }
+    ctx.fill();
+    ctx.stroke();
+    // 엄지 부분
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(-size * 0.1, -size * 0.5, size * 0.2, size * 0.42, size * 0.1);
+    } else {
+      ctx.rect(-size * 0.1, -size * 0.5, size * 0.2, size * 0.42);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
     if (p > 0.6) {
       ctx.beginPath();
       ctx.arc(th.tx + ox, th.ty + oy, th.radius * Math.min(1, (p - 0.6) / 0.4), 0, Math.PI * 2);
@@ -1390,7 +1444,7 @@ function render() {
 
   // 적
   for (const e of enemies) {
-    const eh = e.r * 3.3;
+    const eh = e.r * 3.3 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
     const curImg = e.facingUp ? enemyBackImg : enemyImg;
     const curRatio = e.facingUp ? ENEMY_BACK_IMG_RATIO : ENEMY_IMG_RATIO;
     const ew = eh * curRatio;
@@ -1424,9 +1478,24 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // 플레이어
+  // 컴패니언 플로팅 텍스트
+  for (const ft of floatingTexts) {
+    const alpha = Math.max(0, ft.life / ft.maxLife);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${ft.size || 16}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(ft.text, ft.x + ox + 1, ft.y + oy + 1);
+    ctx.fillStyle = ft.color || '#ffd54f';
+    ctx.fillText(ft.text, ft.x + ox, ft.y + oy);
+    ctx.restore();
+  }
+
+
   {
-    const ph = player.r * 2.8;
+    const ph = player.r * 2.8 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
     const curImg = player.facingUp ? playerBackImg : playerImg;
     const curRatio = player.facingUp ? PLAYER_BACK_IMG_RATIO : PLAYER_IMG_RATIO;
     const pw = ph * curRatio;
@@ -1451,6 +1520,7 @@ function render() {
       ctx.stroke();
     }
   }
+  ctx.restore();
 }
 
 // ---------- 루프 ----------
