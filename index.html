@@ -642,6 +642,7 @@ function decodeCompanionVoices() {
 }
 
 function playCompanionVoice(key) {
+  if (!sfxEnabled) return;
   const ctx = ensureAudioCtx();
   if (!ctx || !companionVoiceBuffers[key]) return;
   try {
@@ -893,7 +894,7 @@ const WEAPON_POOL = [
 ];
 const PASSIVE_POOL = [
   { key: 'speed',  name: '타조',        icon: '🐦', desc: '이동속도 +10%' },
-  { key: 'maxhp',  name: '거제굴톤',    icon: '🦪', desc: '최대 체력 +20' },
+  { key: 'maxhp',  name: '거제굴톤',    icon: '🦪', desc: '최대 체력 +40' },
   { key: 'armor',  name: '덕연이딸',    icon: '🤱', desc: '받는 피해 -10%' },
   { key: 'magnet', name: '밥은 줍니까?',   icon: '🍚', desc: '경험치 흡수 범위 +20%' },
   { key: 'cdr',    name: '거제 폭격기', icon: '🚀', desc: '모든 무기 쿨다운 -8%' },
@@ -1390,7 +1391,8 @@ function fireWeapon(w) {
       bullets.push({
         x: player.x, y: player.y, r: 6,
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
-        dmg, life: 2, pierce: w.pierce, hitSet: new Set(), color: '#ff7043', icon: '🔥'
+        dmg, life: 2, pierce: w.pierce, hitSet: new Set(),
+        color: w.bulletColor || '#ff7043', icon: w.icon || '🔥'
       });
     }
 
@@ -1594,6 +1596,11 @@ function openLevelUp() {
   for (const pp of PASSIVE_POOL) {
     if (!isPassiveMaxed(pp.key)) options.push({ type: 'passive', base: pp });
   }
+  // 불뿜기 진화 (별도 카드, 효과는 우이에 적용 - 우이를 보유 중이고 아직 진화 전일 때만 등장)
+  const wooieForEvolve = weapons.find(w => w.key === 'wooie' && !w.evolved);
+  if (wooieForEvolve) {
+    options.push({ type: 'special', key: 'firebreath' });
+  }
 
   const picks = [];
   const pool = [...options];
@@ -1617,8 +1624,9 @@ function openLevelUp() {
     card.className = 'card';
     let icon, name, desc;
     if (opt.type === 'upgrade') {
-      icon = WEAPON_POOL.find(w => w.key === opt.weapon.key).icon;
-      name = WEAPON_POOL.find(w => w.key === opt.weapon.key).name + ' Lv.' + (opt.weapon.level + 1);
+      const poolInfo = WEAPON_POOL.find(w => w.key === opt.weapon.key);
+      icon = opt.weapon.icon || poolInfo.icon;
+      name = (opt.weapon.name || poolInfo.name) + ' Lv.' + (opt.weapon.level + 1);
       if (opt.weapon.key === 'wooie') {
         if (opt.weapon.count < 3) {
           desc = `투사체 ${opt.weapon.count + 1}개로 증가`;
@@ -1631,6 +1639,8 @@ function openLevelUp() {
       }
     } else if (opt.type === 'new') {
       icon = opt.base.icon; name = opt.base.name + ' (신규)'; desc = opt.base.desc;
+    } else if (opt.type === 'special' && opt.key === 'firebreath') {
+      icon = '💥'; name = '불뿜기 진화'; desc = '우이에 관통 효과 부여 (몹 하나를 뚫고 다음 몹까지 명중)';
     } else {
       icon = opt.base.icon; name = opt.base.name; desc = opt.base.desc;
     }
@@ -1675,11 +1685,14 @@ function applyAnimalSkill(key) {
       for (const w of weapons) if (w.level < 5) pool.push({ type: 'upgrade', weapon: w });
       for (const wp of WEAPON_POOL) if (!weapons.find(w => w.key === wp.key) && weapons.length < 6) pool.push({ type: 'new', base: wp });
       for (const pp of PASSIVE_POOL) pool.push({ type: 'passive', base: pp }); // 물개는 패시브 상한 무시(희귀한 만남에 대한 특별 보상)
+      const wooieForEvolveSeal = weapons.find(w => w.key === 'wooie' && !w.evolved);
+      if (wooieForEvolveSeal) pool.push({ type: 'special', key: 'firebreath' });
       if (!pool.length) break;
       const opt = choice(pool);
       applyChoice(opt, true); // 물개는 상한 무시
       if (opt.type === 'upgrade') labels.push(WEAPON_POOL.find(w => w.key === opt.weapon.key).name + ' 강화');
       else if (opt.type === 'new') labels.push(opt.base.name + ' 획득');
+      else if (opt.type === 'special') labels.push('불뿜기 진화');
       else labels.push(opt.base.name + ' 획득');
     }
     return labels.length ? labels.join(' / ') : '획득 가능한 스킬 없음';
@@ -1699,6 +1712,8 @@ function logSkillPick(opt) {
     skillKey = opt.weapon.key; skillType = 'upgrade';
   } else if (opt.type === 'new') {
     skillKey = opt.base.key; skillType = 'new';
+  } else if (opt.type === 'special') {
+    skillKey = opt.key; skillType = 'special';
   } else {
     skillKey = opt.base.key; skillType = 'passive';
   }
@@ -1739,12 +1754,22 @@ function applyChoice(opt, ignoreCap) {
     const cap = (val) => ignoreCap ? Infinity : val;
     switch (opt.base.key) {
       case 'speed': player.speed = Math.min(cap(220 * 1.8), player.speed * 1.10); break;
-      case 'maxhp': player.maxHp += 20; player.hp += 20; break;
+      case 'maxhp': player.maxHp += 40; player.hp += 40; break;
       case 'armor': player.armor = Math.min(cap(0.6), player.armor + 0.1); break;
       case 'magnet': player.magnetRange = Math.min(cap(60 * 2.5), player.magnetRange * 1.20); break;
       case 'cdr': player.cdr = Math.min(cap(0.5), (player.cdr || 0) + 0.08); break;
       case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.05); break;
       case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
+    }
+  } else if (opt.type === 'special' && opt.key === 'firebreath') {
+    // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (관통 효과 부여)
+    const wooie = weapons.find(w => w.key === 'wooie');
+    if (wooie) {
+      wooie.pierce = (wooie.pierce || 1) + 1;
+      wooie.name = '불뿜기 진화';
+      wooie.icon = '💥';
+      wooie.bulletColor = '#ff3d00';
+      wooie.evolved = true;
     }
   }
 }
