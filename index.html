@@ -732,7 +732,7 @@ if (isTouchDevice()) {
 
 // 모바일 세로형 화면에서만 캐릭터를 더 크게 렌더링 (PC는 영향 없음)
 const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 600;
-const MOBILE_CHAR_SCALE = 0.75;
+const MOBILE_CHAR_SCALE = 1; // 컴패니언 크기 기준으로 통일 (축소 없음)
 const MOBILE_ZOOM = 0.55; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임
 const MAX_ENEMIES = isMobileLayout ? 260 : 450; // 동시 생존 개체수 상한 (공간 분할 적용으로 상향 가능해짐)
 
@@ -1890,8 +1890,10 @@ function render() {
   const enemyCullMargin = 60;
   function drawEnemyEntity(e) {
     const ex = e.x + ox, ey = e.y + oy;
-    if (ex < -enemyCullMargin || ex > canvas.width + enemyCullMargin ||
-        ey < -enemyCullMargin || ey > canvas.height + enemyCullMargin) return;
+    // 컷오프 조건도 줌 배율이 반영된 실제 가시 범위(화면 중심 ± viewHalf) 기준이어야 함
+    const cxCenter = canvas.width / 2, cyCenter = canvas.height / 2;
+    if (ex < cxCenter - viewHalfW - enemyCullMargin || ex > cxCenter + viewHalfW + enemyCullMargin ||
+        ey < cyCenter - viewHalfH - enemyCullMargin || ey > cyCenter + viewHalfH + enemyCullMargin) return;
 
     const eh = e.r * 3.3 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
     const curImg = e.isElite ? (e.facingUp ? eliteBackImg : eliteImg) : (e.facingUp ? enemyBackImg : enemyImg);
