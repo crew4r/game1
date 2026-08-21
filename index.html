@@ -996,7 +996,7 @@ function initGame() {
 // ---------- 스폰 ----------
 function enemyStatsForTime(t) {
   const tier = Math.min(Math.floor(t / 30), 6);
-  const baseSpeed = 60 + tier * 6;
+  let baseSpeed = 60 + tier * 6;
   let hp = 12 + tier * 10;
   let dmg = 6 + tier * 2;
   let xpVal = 2 + tier;
@@ -1015,6 +1015,10 @@ function enemyStatsForTime(t) {
     hp = Math.round(hp * growth);
     dmg = Math.round(dmg * growth);
     xpVal = Math.round(xpVal * growth);
+    // 이동속도도 완만하게 같이 성장 (체력/공격력만 늘고 속도가 고정이면, 사거리 긴 무기로
+    // 제자리에서 안전하게 파밍만 가능해지는 문제가 있어 속도도 절반 강도로 같이 스케일링)
+    const speedGrowth = Math.pow(1.055, (t - 180) / 60);
+    baseSpeed = Math.round(baseSpeed * speedGrowth);
   }
   return {
     hp,
@@ -1344,6 +1348,7 @@ function update(dt) {
     e.facing = Math.cos(a) >= 0 ? 1 : -1;
     e.facingUp = Math.sin(a) < 0;
     if (e.slowTimer > 0) e.slowTimer -= dt;
+    if (e.knockbackCd > 0) e.knockbackCd -= dt;
     resolveObstacleCollision(e);
     resolvePDWallCollision(e);
     if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
@@ -1754,10 +1759,11 @@ function fireWeapon(w) {
             spawnParticles(e.x, e.y, '#fc5', 3);
             spawnDamageNumber(e.x, e.y, dmg, e.isElite ? 'elite' : 'normal');
             hitAny = true;
-            if (w.knockback && !e.isElite) {
+            if (w.knockback && !e.isElite && !(e.knockbackCd > 0)) {
               const a = Math.atan2(e.y - player.y, e.x - player.x);
               e.x += Math.cos(a) * 10;
               e.y += Math.sin(a) * 10;
+              e.knockbackCd = 0.5; // 넉백 재적용까지 잠깐 딜레이 (연속 넉백 방지)
             }
           }
         }
