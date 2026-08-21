@@ -1274,6 +1274,22 @@ function update(dt) {
         spawnParticles(e.x, e.y, '#ff5', 4);
         spawnDamageNumber(e.x, e.y, b.dmg, e.isElite ? 'elite' : 'normal');
         playHitSound();
+
+        if (b.splash) {
+          // 불뿜기 진화: 명중 지점 주변 몹에게도 스플래시 데미지
+          const SPLASH_RADIUS = 55;
+          const splashNearby = queryEnemiesNear(e.x, e.y, SPLASH_RADIUS);
+          for (const se of splashNearby) {
+            if (se === e || b.hitSet.has(se)) continue;
+            if (dist(e, se) < SPLASH_RADIUS) {
+              se.hp -= b.dmg;
+              b.hitSet.add(se);
+              spawnParticles(se.x, se.y, '#ff9800', 3);
+              spawnDamageNumber(se.x, se.y, b.dmg, se.isElite ? 'elite' : 'normal');
+            }
+          }
+          spawnParticles(e.x, e.y, '#ff3d00', 6);
+        }
       }
     }
   }
@@ -1392,7 +1408,8 @@ function fireWeapon(w) {
         x: player.x, y: player.y, r: 6,
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
         dmg, life: 2, pierce: w.pierce, hitSet: new Set(),
-        color: w.bulletColor || '#ff7043', icon: w.icon || '🔥'
+        color: w.bulletColor || '#ff7043', icon: w.icon || '🔥',
+        splash: !!w.evolved // 불뿜기 진화: 명중 시 주변에도 스플래시 데미지
       });
     }
 
@@ -1762,12 +1779,11 @@ function applyChoice(opt, ignoreCap) {
       case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
     }
   } else if (opt.type === 'special' && opt.key === 'firebreath') {
-    // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (관통 효과 부여)
+    // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (관통 효과 부여, 이모지는 기존 그대로 유지)
     const wooie = weapons.find(w => w.key === 'wooie');
     if (wooie) {
       wooie.pierce = (wooie.pierce || 1) + 1;
       wooie.name = '불뿜기 진화';
-      wooie.icon = '💥';
       wooie.bulletColor = '#ff3d00';
       wooie.evolved = true;
     }
