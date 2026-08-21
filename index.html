@@ -158,6 +158,9 @@
     flex-direction: column; z-index: 45; text-align: center;
   }
   #startLeaderboardModal h2, #noticeModal h2, #freeboardModal h2 { color: #ffd54f; margin-bottom: 12px; }
+  #freeboardListView, #freeboardDetailView {
+    width: 100%; display: flex; flex-direction: column; align-items: center;
+  }
   #startLeaderboardList {
     list-style: none; padding: 0; margin: 0; width: 90%; max-width: 340px;
     max-height: 320px; overflow-y: auto;
@@ -180,41 +183,50 @@
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
   }
   #freeboardListWrap {
-    width: 92%; max-width: 480px; max-height: 260px; overflow-y: auto;
-    background: #1a1a26; border-radius: 8px; border: 1px solid #333;
+    width: 96%; max-width: 810px; max-height: 260px; overflow-y: auto;
+    background: #16202e; border-radius: 8px; border: 1px solid #2c4a68;
+    margin: 0 auto;
   }
   #freeboardList { list-style: none; padding: 0; margin: 0; text-align: left; }
   #freeboardList li {
-    padding: 12px 14px; border-bottom: 1px solid #262636; cursor: pointer;
+    padding: 12px 14px; border-bottom: 1px solid #22334a; cursor: pointer;
   }
   #freeboardList li:last-child { border-bottom: none; }
-  #freeboardList li:hover, #freeboardList li:active { background: rgba(255,213,79,0.08); }
+  #freeboardList li:hover, #freeboardList li:active { background: rgba(100,181,246,0.1); }
   #freeboardList .fbTitleText {
     color: #eee; font-size: 14px; font-weight: bold;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  #freeboardList .fbNick { color: #999; font-size: 11px; margin-top: 3px; }
+  #freeboardList .fbNick { color: #7ea6c9; font-size: 11px; margin-top: 3px; }
   #freeboardForm {
-    width: 92%; max-width: 480px; margin-top: 12px;
-    display: flex; flex-direction: column; gap: 6px;
+    width: 92%; max-width: 480px; margin: 14px auto 0; padding: 12px;
+    background: #241a1a; border: 1px solid #4a2c2c; border-radius: 8px;
+    box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
   }
-  #freeboardNickInput, #freeboardTitleInput {
-    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #555;
-    background: #1a1a26; color: #eee;
+  #freeboardNickInput, #freeboardTitleInput, #freeboardPwInput {
+    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #5a4040;
+    background: #1a1414; color: #eee;
   }
   #freeboardMsgInput {
-    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #555;
-    background: #1a1a26; color: #eee; resize: vertical; min-height: 60px; font-family: inherit;
+    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #5a4040;
+    background: #1a1414; color: #eee; resize: vertical; min-height: 60px; font-family: inherit;
   }
   #freeboardError { color: #ff6b6b; font-size: 12px; min-height: 14px; text-align: left; }
   #freeboardDetailWrap {
-    width: 92%; max-width: 480px; max-height: 380px; overflow-y: auto;
-    background: #1a1a26; border-radius: 8px; border: 1px solid #333;
+    width: 96%; max-width: 810px; max-height: 380px; overflow-y: auto;
+    background: #16202e; border-radius: 8px; border: 1px solid #2c4a68;
     padding: 16px; box-sizing: border-box; text-align: left;
+    margin: 0 auto;
   }
   #freeboardDetailTitle { color: #ffd54f; font-size: 16px; font-weight: bold; margin-bottom: 4px; word-break: break-word; }
-  #freeboardDetailMeta { color: #999; font-size: 11px; margin-bottom: 12px; }
+  #freeboardDetailMeta { color: #7ea6c9; font-size: 11px; margin-bottom: 12px; }
   #freeboardDetailContent { color: #eee; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  #freeboardDetailActions { display: flex; gap: 8px; margin-top: 12px; }
+  #freeboardEditBtn, #freeboardDeleteBtn {
+    padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
+    background: transparent; border: 1px solid #666; color: #ccc;
+  }
+  #freeboardDeleteBtn { border-color: #7a3a3a; color: #ff8a80; }
   #freeboardDetailBackBtn {
     margin-top: 14px; padding: 6px 18px; font-size: 13px;
     background: transparent; border: 1px solid #666; color: #ccc;
@@ -482,6 +494,7 @@
       <input id="freeboardNickInput" maxlength="10" placeholder="닉네임 (선택)" />
       <input id="freeboardTitleInput" maxlength="40" placeholder="제목" />
       <textarea id="freeboardMsgInput" maxlength="200" placeholder="내용을 입력해주세요 (최대 200자)"></textarea>
+      <input id="freeboardPwInput" type="password" maxlength="20" placeholder="비밀번호 (수정/삭제 시 필요)" />
       <div id="freeboardError"></div>
       <button id="freeboardSubmitBtn">등록</button>
     </div>
@@ -492,6 +505,10 @@
       <div id="freeboardDetailTitle"></div>
       <div id="freeboardDetailMeta"></div>
       <div id="freeboardDetailContent"></div>
+    </div>
+    <div id="freeboardDetailActions">
+      <button id="freeboardEditBtn">✏️ 수정</button>
+      <button id="freeboardDeleteBtn">🗑️ 삭제</button>
     </div>
     <button id="freeboardDetailBackBtn">← 목록으로</button>
   </div>
@@ -2978,6 +2995,12 @@ document.getElementById('closeNoticeBtn').onclick = () => {
 
 // ---------- 자유게시판 (제목 목록 → 클릭 시 상세보기) ----------
 let freeboardPosts = [];
+let freeboardDetailIndex = -1;
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 function showFreeboardListView() {
   document.getElementById('freeboardListView').style.display = 'block';
@@ -2986,11 +3009,69 @@ function showFreeboardListView() {
 function showFreeboardDetail(index) {
   const p = freeboardPosts[index];
   if (!p) return;
+  freeboardDetailIndex = index;
   document.getElementById('freeboardListView').style.display = 'none';
   document.getElementById('freeboardDetailView').style.display = 'block';
   document.getElementById('freeboardDetailTitle').textContent = p.title || '(제목 없음)';
   document.getElementById('freeboardDetailMeta').textContent = p.nickname || '익명의 리센느';
   document.getElementById('freeboardDetailContent').textContent = p.message || '';
+}
+
+async function handleEditPost() {
+  const p = freeboardPosts[freeboardDetailIndex];
+  if (!p) return;
+  const pw = window.prompt('본인 확인용 비밀번호를 입력하세요');
+  if (pw === null) return;
+  const hash = await hashPassword(pw);
+  if (hash !== p.passwordHash) {
+    alert('비밀번호가 일치하지 않습니다.');
+    return;
+  }
+  const newTitle = window.prompt('새 제목 (최대 40자)', p.title || '');
+  if (newTitle === null) return;
+  const newMsg = window.prompt('새 내용 (최대 200자)', p.message || '');
+  if (newMsg === null) return;
+  const title = newTitle.trim().slice(0, 40);
+  const message = newMsg.trim().slice(0, 200);
+  if (!title || !message) {
+    alert('제목과 내용은 비워둘 수 없습니다.');
+    return;
+  }
+  if (containsProfanity(title) || containsProfanity(message)) {
+    alert('부적절한 표현이 포함되어 있어요.');
+    return;
+  }
+  const ok = window.fbUpdatePost
+    ? await window.fbUpdatePost(p.id, { passwordHash: hash, nickname: p.nickname, title, message })
+    : false;
+  if (!ok) {
+    alert('수정에 실패했습니다.');
+    return;
+  }
+  alert('수정되었습니다.');
+  showFreeboardListView();
+  renderFreeboard();
+}
+
+async function handleDeletePost() {
+  const p = freeboardPosts[freeboardDetailIndex];
+  if (!p) return;
+  const pw = window.prompt('본인 확인용 비밀번호를 입력하세요');
+  if (pw === null) return;
+  const hash = await hashPassword(pw);
+  if (hash !== p.passwordHash) {
+    alert('비밀번호가 일치하지 않습니다.');
+    return;
+  }
+  if (!confirm('정말 삭제하시겠습니까?')) return;
+  const ok = window.fbDeletePost ? await window.fbDeletePost(p.id, hash) : false;
+  if (!ok) {
+    alert('삭제에 실패했습니다.');
+    return;
+  }
+  alert('삭제되었습니다.');
+  showFreeboardListView();
+  renderFreeboard();
 }
 
 async function renderFreeboard() {
@@ -3038,6 +3119,7 @@ async function submitFreeboardPost() {
   const nickInput = document.getElementById('freeboardNickInput');
   const titleInput = document.getElementById('freeboardTitleInput');
   const msgInput = document.getElementById('freeboardMsgInput');
+  const pwInput = document.getElementById('freeboardPwInput');
   const errorEl = document.getElementById('freeboardError');
   let nick = nickInput.value.trim();
   if (!nick) nick = '익명의 리센느';
@@ -3054,6 +3136,11 @@ async function submitFreeboardPost() {
     return;
   }
   msg = msg.slice(0, 200);
+  const pw = pwInput.value;
+  if (!pw) {
+    errorEl.textContent = '수정/삭제 시 필요한 비밀번호를 입력해주세요.';
+    return;
+  }
   if (containsProfanity(nick) || containsProfanity(title) || containsProfanity(msg)) {
     errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
@@ -3062,7 +3149,8 @@ async function submitFreeboardPost() {
   const btn = document.getElementById('freeboardSubmitBtn');
   btn.disabled = true;
   btn.textContent = '등록 중...';
-  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg }) : false;
+  const passwordHash = await hashPassword(pw);
+  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash }) : false;
   btn.disabled = false;
   btn.textContent = '등록';
   if (!ok) {
@@ -3071,10 +3159,13 @@ async function submitFreeboardPost() {
   }
   titleInput.value = '';
   msgInput.value = '';
+  pwInput.value = '';
   await renderFreeboard();
 }
 document.getElementById('freeboardSubmitBtn').onclick = submitFreeboardPost;
 document.getElementById('freeboardDetailBackBtn').onclick = showFreeboardListView;
+document.getElementById('freeboardEditBtn').onclick = handleEditPost;
+document.getElementById('freeboardDeleteBtn').onclick = handleDeletePost;
 document.getElementById('freeboardBtn').onclick = () => {
   document.getElementById('freeboardModal').style.display = 'flex';
   document.getElementById('freeboardError').textContent = '';
@@ -3152,7 +3243,7 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp, doc, updateDoc
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -3205,6 +3296,8 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
         nickname: entry.nickname,
         title: entry.title,
         message: entry.message,
+        passwordHash: entry.passwordHash,
+        deleted: false,
         createdAt: serverTimestamp()
       });
       return true;
@@ -3218,11 +3311,39 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
       const q = query(collection(db, "freeboard"), orderBy("createdAt", "desc"), limit(50));
       const snap = await getDocs(q);
       const list = [];
-      snap.forEach(d => list.push(d.data()));
+      snap.forEach(d => {
+        const data = d.data();
+        if (data.deleted) return; // 삭제된 글은 목록에서 제외
+        list.push({ id: d.id, ...data });
+      });
       return list;
     } catch (e) {
       console.error("게시글 조회 실패:", e);
       return [];
+    }
+  };
+  window.fbUpdatePost = async function (id, data) {
+    try {
+      await updateDoc(doc(db, "freeboard", id), {
+        passwordHash: data.passwordHash,
+        nickname: data.nickname,
+        title: data.title,
+        message: data.message,
+      });
+      return true;
+    } catch (e) {
+      console.error("게시글 수정 실패:", e);
+      return false;
+    }
+  };
+  window.fbDeletePost = async function (id, passwordHash) {
+    try {
+      // 실제 삭제 대신 deleted 플래그만 변경 (Firestore 규칙상 delete는 본인 확인이 어려워 update로 대체)
+      await updateDoc(doc(db, "freeboard", id), { deleted: true, passwordHash });
+      return true;
+    } catch (e) {
+      console.error("게시글 삭제 실패:", e);
+      return false;
     }
   };
 
