@@ -145,18 +145,18 @@
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer;
     font-weight: bold;
   }
-  #viewLeaderboardBtn {
+  #viewLeaderboardBtn, #noticeBtn {
     margin-top: 10px; padding: 8px 22px; font-size: 14px;
     background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
     border-radius: 6px; cursor: pointer;
   }
-  #startLeaderboardModal {
+  #startLeaderboardModal, #noticeModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9);
     display: none; align-items: center; justify-content: center;
     flex-direction: column; z-index: 45; text-align: center;
   }
-  #startLeaderboardModal h2 { color: #ffd54f; margin-bottom: 12px; }
+  #startLeaderboardModal h2, #noticeModal h2 { color: #ffd54f; margin-bottom: 12px; }
   #startLeaderboardList {
     list-style: none; padding: 0; margin: 0; width: 90%; max-width: 340px;
     max-height: 320px; overflow-y: auto;
@@ -167,9 +167,25 @@
     font-size: 13px; border-bottom: 1px solid #262636; color: #eee;
   }
   #startLeaderboardList .rank { width: 28px; color: #999; }
-  #closeLeaderboardBtn {
+  #closeLeaderboardBtn, #closeNoticeBtn {
     margin-top: 16px; padding: 8px 24px; font-size: 14px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
+  #noticeList {
+    list-style: none; padding: 0; margin: 0; width: 92%; max-width: 480px;
+    max-height: 380px; overflow-y: auto; text-align: left;
+    background: #1a1a26; border-radius: 8px; border: 1px solid #333;
+  }
+  #noticeList li {
+    padding: 10px 14px; font-size: 13px; color: #eee; line-height: 1.5;
+    border-bottom: 1px solid #262636;
+  }
+  #noticeList li.important { color: #ff8a80; font-weight: bold; }
+  #noticeList li:last-child { border-bottom: none; }
+  #buildVersion {
+    position: fixed; top: 8px; left: 10px; z-index: 46;
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    pointer-events: none;
   }
   /* 모바일 가상 조이스틱 (터치한 지점에서 바로 생성되는 방식) */
   #touchZone {
@@ -300,18 +316,42 @@
   </div>
 </div>
 
+<div id="buildVersion">v0.9</div>
+
 <div id="startModal">
   <h1>🐾 리센느의 백제어택</h1>
   <p>백제 자객의 공격을 피하며 살아남으세요. 공격은 자동으로 나갑니다.
   경험치 구슬을 먹어 레벨업하고, 무기와 능력을 강화해 최대한 오래 버티세요!</p>
   <button id="startBtn">게임 시작</button>
   <button id="viewLeaderboardBtn">🏆 리더보드 보기</button>
+  <button id="noticeBtn">⚙️ 공지사항</button>
 </div>
 
 <div id="startLeaderboardModal">
   <h2>🏆 리더보드 TOP 20</h2>
   <ol id="startLeaderboardList"></ol>
   <button id="closeLeaderboardBtn">닫기</button>
+</div>
+
+<div id="noticeModal">
+  <h2>⚙️ 공지사항</h2>
+  <ul id="noticeList">
+    <li class="important">📢 대규모 업데이트 진행으로 기존 리더보드의 기록이 초기화 됩니다</li>
+    <li><b>v0.9 곰 대처법이 필요해</b></li>
+    <li>🐾 흉폭한 곰(엘리트) 등장 — 3분마다 소환, 처치 시 스킬 카드 확정 획득</li>
+    <li>🥢 에디슨젓가락 데미지 하향 (15 → 11)</li>
+    <li>💿 리센느아세요? 데미지 하향 (5 → 4)</li>
+    <li>👶 거제의 딸 소량 데미지 부여 (0 → 2)</li>
+    <li>🔥 우이 성장 방식 변경 — 발사체 최대 3개 이후 데미지/공속 교차 강화</li>
+    <li>😋 오이쉬에 착탄 범위 확대 (70 → 88)</li>
+    <li>몬스터 체력·공격력·경험치 보상, 3분 이후에도 지속 성장하도록 변경</li>
+    <li>컴패니언 다중 레벨업 시 스킬 선택창 누락 버그 수정</li>
+    <li>컴패니언 획득 시 전용 음성 재생 안정화</li>
+    <li>몬스터 상한 도달 시 재생성 안 되던 문제 수정</li>
+    <li>리더보드 점수 산정 방식 변경 (생존시간 비중 축소, 처치수·레벨 비중 확대)</li>
+    <li>피격 데미지 수치 표시 추가, 체력바·경험치바 디자인 개선</li>
+  </ul>
+  <button id="closeNoticeBtn">닫기</button>
 </div>
 
 <script>
@@ -471,6 +511,11 @@ function ensureAudioCtx() {
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     catch (e) { audioCtx = null; }
+  }
+  // 브라우저 정책상 오디오 컨텍스트가 suspended 상태로 생성될 수 있어서,
+  // 호출될 때마다 확인 후 재개시켜줌 (게임 초반 효과음이 안 나던 원인)
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
   }
   return audioCtx;
 }
@@ -758,13 +803,13 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'Enter') {
     e.preventDefault();
     const opt = levelUpChoices[levelUpSelectedIndex];
-    if (opt) { applyChoice(opt); closeLevelUp(); }
+    if (opt) { logSkillPick(opt); applyChoice(opt); closeLevelUp(); }
   }
 });
 
 // ---------- 게임 상태 ----------
 let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx;
-let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers;
+let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
 let gameTime, killCount, spawnTimer, eliteSpawnTimer, running, lastTs;
 let weapons, level, xp, xpToNext;
 let levelUpChoices = [], levelUpCardEls = [], levelUpSelectedIndex = 0;
@@ -818,7 +863,8 @@ function initGame() {
   gameTime = 0;
   killCount = 0;
   spawnTimer = 0;
-  eliteSpawnTimer = 180; // 3분마다 엘리트몹 등장
+  eliteSpawnTimer = 240; // 첫 엘리트몹은 4분에 등장 (초반 성장 시간을 좀 더 벌어줌)
+  eliteEncounterCount = 0;
   level = 1;
   xp = 0;
   xpToNext = 10;
@@ -871,18 +917,26 @@ function spawnEnemy() {
 }
 
 function spawnEliteEnemy() {
+  eliteEncounterCount++;
   const angle = rand(0, Math.PI * 2);
   const zoom = isMobileLayout ? MOBILE_ZOOM : 1;
   const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 80;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
   const base = enemyStatsForTime(gameTime);
-  const hp = Math.round(base.hp * 9);
+
+  // 처음 만나는 엘리트는 상대적으로 약하게, 이후 등장할수록 지금 수준(체력×9/공격력×2.4)까지 점점 강해짐
+  let hpMult, dmgMult;
+  if (eliteEncounterCount === 1) { hpMult = 4;   dmgMult = 1.5; }
+  else if (eliteEncounterCount === 2) { hpMult = 6; dmgMult = 1.9; }
+  else { hpMult = 9; dmgMult = 2.4; }
+
+  const hp = Math.round(base.hp * hpMult);
   enemies.push({
     x, y,
     hp, maxHp: hp,
     speed: base.speed * 1.2,      // 일반 몹보다 살짝 빠름 (도망만 다니며 버틸 수 없게)
-    dmg: Math.round(base.dmg * 2.4),
+    dmg: Math.round(base.dmg * dmgMult),
     r: 22,                         // 일반 몹(12)보다 훨씬 큼
     color: '#b26fe0',
     xp: base.xp * 6,               // 처치 시 경험치 구슬도 훨씬 큼
@@ -1031,7 +1085,7 @@ function update(dt) {
   // 엘리트몹 스폰 (3분마다 한 번)
   eliteSpawnTimer -= dt;
   if (eliteSpawnTimer <= 0) {
-    eliteSpawnTimer = 180;
+    eliteSpawnTimer = 180; // 이후로는 3분마다 등장
     spawnEliteEnemy();
   }
 
@@ -1471,7 +1525,7 @@ function openLevelUp() {
       icon = opt.base.icon; name = opt.base.name; desc = opt.base.desc;
     }
     card.innerHTML = `<div class="icon">${icon}</div><div class="textWrap"><div class="name">${name}</div><div class="desc">${desc}</div></div>`;
-    card.onclick = () => { applyChoice(opt); closeLevelUp(); };
+    card.onclick = () => { logSkillPick(opt); applyChoice(opt); closeLevelUp(); };
     row.appendChild(card);
     cardEls.push(card);
   }
@@ -1525,6 +1579,20 @@ function applyAnimalSkill(key) {
     return `체력 ${healAmount} 회복!`;
   }
   return '';
+}
+
+// 레벨업 카드에서 플레이어가 직접 고른 스킬만 픽률 통계용으로 기록 (컴패니언 랜덤 지급은 제외)
+function logSkillPick(opt) {
+  if (!window.fbLogSkillPick) return;
+  let skillKey, skillType;
+  if (opt.type === 'upgrade') {
+    skillKey = opt.weapon.key; skillType = 'upgrade';
+  } else if (opt.type === 'new') {
+    skillKey = opt.base.key; skillType = 'new';
+  } else {
+    skillKey = opt.base.key; skillType = 'passive';
+  }
+  window.fbLogSkillPick({ skillKey, skillType });
 }
 
 function applyChoice(opt) {
@@ -2059,7 +2127,15 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'none';
 };
 
-document.getElementById('startBtn').onclick = () => { startBgm(); decodeCompanionVoices(); initGame(); };
+// 시작 화면에서 공지사항 조회
+document.getElementById('noticeBtn').onclick = () => {
+  document.getElementById('noticeModal').style.display = 'flex';
+};
+document.getElementById('closeNoticeBtn').onclick = () => {
+  document.getElementById('noticeModal').style.display = 'none';
+};
+
+document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm(); decodeCompanionVoices(); initGame(); };
 </script>
 
 <script type="module">
@@ -2108,6 +2184,19 @@ document.getElementById('startBtn').onclick = () => { startBgm(); decodeCompanio
     } catch (e) {
       console.error("리더보드 조회 실패:", e);
       return [];
+    }
+  };
+
+  // 레벨업 카드에서 플레이어가 직접 고른 스킬만 기록 (컴패니언 랜덤 지급분은 제외)
+  window.fbLogSkillPick = async function (entry) {
+    try {
+      await addDoc(collection(db, "skillPicks"), {
+        skillKey: entry.skillKey,
+        skillType: entry.skillType,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn("스킬 픽 로그 실패:", e);
     }
   };
 </script>
