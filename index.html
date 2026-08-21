@@ -738,15 +738,18 @@ const bgmToggleBtn = document.getElementById('bgmToggleBtn');
 const sfxToggleBtn = document.getElementById('sfxToggleBtn');
 bgmToggleBtn.addEventListener('click', () => {
   bgmEnabled = !bgmEnabled;
+  const ytWrap = document.getElementById('ytPlayerWrap');
   if (bgmEnabled) {
     if (ytReady) ytPlayer.playVideo(); else ytPendingPlay = true;
     bgmToggleBtn.classList.remove('muted');
     bgmToggleBtn.textContent = '🎵';
+    if (ytWrap) ytWrap.classList.remove('yt-hidden');
   } else {
     if (ytReady) ytPlayer.pauseVideo();
     ytPendingPlay = false;
     bgmToggleBtn.classList.add('muted');
     bgmToggleBtn.textContent = '🔇';
+    if (ytWrap) ytWrap.classList.add('yt-hidden');
   }
 });
 sfxToggleBtn.addEventListener('click', () => {
