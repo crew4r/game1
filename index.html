@@ -1036,6 +1036,17 @@ const ANIMAL_MESSAGES = {
 
 // 동물 컴패니언은 맵 곳곳에 낮은 확률로 결정론적으로 배치 (해시 기반, 타이머 아님)
 const COMPANION_CELL = 480;
+const ANIMAL_WEIGHTS = { elephant: 1, sheep: 1, seal: 0.6, bear: 1 }; // 물개는 랜덤 스킬 상한 무시라 등장 비중을 소폭 낮춤
+const ANIMAL_WEIGHT_TOTAL = Object.values(ANIMAL_WEIGHTS).reduce((a, b) => a + b, 0);
+function pickWeightedAnimal(h) {
+  let acc = 0;
+  const roll = h * ANIMAL_WEIGHT_TOTAL;
+  for (const key of ANIMAL_KEYS) {
+    acc += ANIMAL_WEIGHTS[key];
+    if (roll < acc) return key;
+  }
+  return ANIMAL_KEYS[ANIMAL_KEYS.length - 1];
+}
 function getCompanionAt(cx, cy) {
   const h = hash2(cx * 7 + 3, cy * 13 + 9);
   if (h > 0.03) return null; // 낮은 확률로만 배치
@@ -1044,8 +1055,7 @@ function getCompanionAt(cx, cy) {
   const wx = cx * COMPANION_CELL + COMPANION_CELL * 0.15 + jx * COMPANION_CELL * 0.7;
   const wy = cy * COMPANION_CELL + COMPANION_CELL * 0.15 + jy * COMPANION_CELL * 0.7;
   if (Math.hypot(wx, wy) < 260) return null; // 시작 지점 근처는 비워둠
-  const keyIdx = Math.floor(hash2(cx + 3, cy + 91) * ANIMAL_KEYS.length) % ANIMAL_KEYS.length;
-  const key = ANIMAL_KEYS[keyIdx];
+  const key = pickWeightedAnimal(hash2(cx + 3, cy + 91));
   return { cellKey: cx + ',' + cy, x: wx, y: wy, r: 18, key };
 }
 function getNearbyCompanions(x, y, margin) {
@@ -1591,6 +1601,15 @@ function openLevelUp() {
     const idx = Math.floor(Math.random() * pool.length);
     picks.push(pool.splice(idx, 1)[0]);
   }
+  // 뽑힌 3장이 전부 패시브뿐이면(무기 관련 카드가 하나도 없으면), 하나를 무기 카드로 강제 교체
+  // - 우이만 있는 초반에 계속 패시브만 뽑혀서 화력이 완전히 정체되는 상황 방지
+  const hasWeaponCard = picks.some(p => p.type === 'upgrade' || p.type === 'new');
+  if (!hasWeaponCard) {
+    const weaponOptions = options.filter(o => o.type === 'upgrade' || o.type === 'new');
+    if (weaponOptions.length) {
+      picks[0] = weaponOptions[Math.floor(Math.random() * weaponOptions.length)];
+    }
+  }
 
   const cardEls = [];
   for (const opt of picks) {
@@ -1655,10 +1674,10 @@ function applyAnimalSkill(key) {
       const pool = [];
       for (const w of weapons) if (w.level < 5) pool.push({ type: 'upgrade', weapon: w });
       for (const wp of WEAPON_POOL) if (!weapons.find(w => w.key === wp.key) && weapons.length < 6) pool.push({ type: 'new', base: wp });
-      for (const pp of PASSIVE_POOL) if (!isPassiveMaxed(pp.key)) pool.push({ type: 'passive', base: pp });
+      for (const pp of PASSIVE_POOL) pool.push({ type: 'passive', base: pp }); // 물개는 패시브 상한 무시(희귀한 만남에 대한 특별 보상)
       if (!pool.length) break;
       const opt = choice(pool);
-      applyChoice(opt);
+      applyChoice(opt, true); // 물개는 상한 무시
       if (opt.type === 'upgrade') labels.push(WEAPON_POOL.find(w => w.key === opt.weapon.key).name + ' 강화');
       else if (opt.type === 'new') labels.push(opt.base.name + ' 획득');
       else labels.push(opt.base.name + ' 획득');
@@ -1686,15 +1705,17 @@ function logSkillPick(opt) {
   window.fbLogSkillPick({ skillKey, skillType });
 }
 
-function applyChoice(opt) {
+function applyChoice(opt, ignoreCap) {
   if (opt.type === 'upgrade') {
     const w = opt.weapon;
     w.level++;
 
     if (w.key === 'wooie') {
       // 우이 전용: 발사량 최대 3개까지 늘어난 뒤, 이후엔 데미지/발사속도가 번갈아 강화됨
+      // 발사량 늘리는 구간에서도 데미지가 완전히 정체되지 않도록 소폭 동반 상승시킴
       if (w.count < 3) {
         w.count++;
+        w.dmg = Math.round(w.dmg * 1.15 * 10) / 10;
       } else {
         w.wooieToggle = !w.wooieToggle;
         if (w.wooieToggle) {
@@ -1714,14 +1735,16 @@ function applyChoice(opt) {
   } else if (opt.type === 'new') {
     weapons.push({ ...opt.base, level: 1, timer: 0, angle: 0 });
   } else if (opt.type === 'passive') {
+    // 물개 컴패니언으로 얻을 때(ignoreCap)는 최종 상한을 무시하고 계속 성장시킴 (희귀한 만남에 대한 특별 보상)
+    const cap = (val) => ignoreCap ? Infinity : val;
     switch (opt.base.key) {
-      case 'speed': player.speed = Math.min(220 * 1.8, player.speed * 1.10); break;
+      case 'speed': player.speed = Math.min(cap(220 * 1.8), player.speed * 1.10); break;
       case 'maxhp': player.maxHp += 20; player.hp += 20; break;
-      case 'armor': player.armor = Math.min(0.6, player.armor + 0.1); break;
-      case 'magnet': player.magnetRange = Math.min(60 * 2.5, player.magnetRange * 1.20); break;
-      case 'cdr': player.cdr = Math.min(0.5, (player.cdr || 0) + 0.08); break;
-      case 'dmgup': player.dmgMult = Math.min(2.0, (player.dmgMult || 1) + 0.05); break;
-      case 'luck': player.luck = Math.min(2.5, (player.luck || 1) + 0.2); break;
+      case 'armor': player.armor = Math.min(cap(0.6), player.armor + 0.1); break;
+      case 'magnet': player.magnetRange = Math.min(cap(60 * 2.5), player.magnetRange * 1.20); break;
+      case 'cdr': player.cdr = Math.min(cap(0.5), (player.cdr || 0) + 0.08); break;
+      case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.05); break;
+      case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
     }
   }
 }
