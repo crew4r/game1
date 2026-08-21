@@ -143,20 +143,21 @@
   #startBtn {
     margin-top: 20px; padding: 12px 32px; font-size: 18px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer;
-    font-weight: bold;
+    font-weight: bold; width: 220px; box-sizing: border-box;
   }
-  #viewLeaderboardBtn, #noticeBtn {
+  #viewLeaderboardBtn, #noticeBtn, #freeboardBtn {
     margin-top: 10px; padding: 8px 22px; font-size: 14px;
     background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
-    border-radius: 6px; cursor: pointer;
+    border-radius: 6px; cursor: pointer; width: 220px; height: 38px;
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center;
   }
-  #startLeaderboardModal, #noticeModal {
+  #startLeaderboardModal, #noticeModal, #freeboardModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9);
     display: none; align-items: center; justify-content: center;
     flex-direction: column; z-index: 45; text-align: center;
   }
-  #startLeaderboardModal h2, #noticeModal h2 { color: #ffd54f; margin-bottom: 12px; }
+  #startLeaderboardModal h2, #noticeModal h2, #freeboardModal h2 { color: #ffd54f; margin-bottom: 12px; }
   #startLeaderboardList {
     list-style: none; padding: 0; margin: 0; width: 90%; max-width: 340px;
     max-height: 320px; overflow-y: auto;
@@ -174,9 +175,37 @@
     border-radius: 6px; cursor: pointer;
   }
   .lbTabBtn.active { background: #ffd54f; color: #1a1a26; border-color: #ffd54f; }
-  #closeLeaderboardBtn, #closeNoticeBtn {
+  #closeLeaderboardBtn, #closeNoticeBtn, #closeFreeboardBtn {
     margin-top: 16px; padding: 8px 24px; font-size: 14px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
+  #freeboardListWrap {
+    width: 92%; max-width: 480px; max-height: 260px; overflow-y: auto;
+    background: #1a1a26; border-radius: 8px; border: 1px solid #333;
+  }
+  #freeboardList { list-style: none; padding: 0; margin: 0; text-align: left; }
+  #freeboardList li {
+    padding: 10px 14px; border-bottom: 1px solid #262636;
+  }
+  #freeboardList li:last-child { border-bottom: none; }
+  #freeboardList .fbNick { color: #ffd54f; font-size: 12px; font-weight: bold; margin-bottom: 3px; }
+  #freeboardList .fbMsg { color: #eee; font-size: 13px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
+  #freeboardForm {
+    width: 92%; max-width: 480px; margin-top: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #freeboardNickInput {
+    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #555;
+    background: #1a1a26; color: #eee;
+  }
+  #freeboardMsgInput {
+    padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #555;
+    background: #1a1a26; color: #eee; resize: vertical; min-height: 60px; font-family: inherit;
+  }
+  #freeboardError { color: #ff6b6b; font-size: 12px; min-height: 14px; text-align: left; }
+  #freeboardSubmitBtn {
+    padding: 8px 0; font-size: 14px; background: #ffd54f; border: none;
+    border-radius: 6px; cursor: pointer; font-weight: bold;
   }
   #noticeList {
     list-style: none; padding: 0; margin: 0; width: 92%; max-width: 480px;
@@ -399,6 +428,7 @@
   <button id="startBtn">게임 시작</button>
   <button id="viewLeaderboardBtn">🏆 리더보드 보기</button>
   <button id="noticeBtn">⚙️ 공지사항</button>
+  <button id="freeboardBtn">📝 자유게시판</button>
 </div>
 
 <div id="startLeaderboardModal">
@@ -422,6 +452,20 @@
   <ul id="noticeList" style="display:none;"></ul>
   <button id="noticeBackBtn" style="display:none;">← 목록으로</button>
   <button id="closeNoticeBtn">닫기</button>
+</div>
+
+<div id="freeboardModal">
+  <h2>📝 자유게시판</h2>
+  <div id="freeboardListWrap">
+    <ul id="freeboardList"></ul>
+  </div>
+  <div id="freeboardForm">
+    <input id="freeboardNickInput" maxlength="10" placeholder="닉네임 (선택)" />
+    <textarea id="freeboardMsgInput" maxlength="200" placeholder="자유롭게 의견을 남겨주세요 (최대 200자)"></textarea>
+    <div id="freeboardError"></div>
+    <button id="freeboardSubmitBtn">등록</button>
+  </div>
+  <button id="closeFreeboardBtn">닫기</button>
 </div>
 
 <div id="adminModal">
@@ -2901,6 +2945,70 @@ document.getElementById('closeNoticeBtn').onclick = () => {
   document.getElementById('noticeModal').style.display = 'none';
 };
 
+// ---------- 자유게시판 ----------
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+async function renderFreeboard() {
+  const listEl = document.getElementById('freeboardList');
+  listEl.innerHTML = '<li style="text-align:center; color:#666;">불러오는 중...</li>';
+  if (!window.fbLoadPosts) {
+    listEl.innerHTML = '<li style="text-align:center; color:#e33;">게시판 연결 실패</li>';
+    return;
+  }
+  const posts = await window.fbLoadPosts();
+  if (!posts.length) {
+    listEl.innerHTML = '<li style="text-align:center; color:#666;">아직 게시글이 없어요. 첫 글을 남겨보세요!</li>';
+    return;
+  }
+  listEl.innerHTML = posts.map(p => `
+    <li>
+      <div class="fbNick">${escapeHtml(p.nickname || '익명의 리센느')}</div>
+      <div class="fbMsg">${escapeHtml(p.message || '')}</div>
+    </li>
+  `).join('');
+}
+async function submitFreeboardPost() {
+  const nickInput = document.getElementById('freeboardNickInput');
+  const msgInput = document.getElementById('freeboardMsgInput');
+  const errorEl = document.getElementById('freeboardError');
+  let nick = nickInput.value.trim();
+  if (!nick) nick = '익명의 리센느';
+  nick = nick.slice(0, 10);
+  let msg = msgInput.value.trim();
+  if (!msg) {
+    errorEl.textContent = '내용을 입력해주세요.';
+    return;
+  }
+  msg = msg.slice(0, 200);
+  if (containsProfanity(nick) || containsProfanity(msg)) {
+    errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
+    return;
+  }
+  errorEl.textContent = '';
+  const btn = document.getElementById('freeboardSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '등록 중...';
+  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, message: msg }) : false;
+  btn.disabled = false;
+  btn.textContent = '등록';
+  if (!ok) {
+    errorEl.textContent = '등록 실패 (네트워크/설정을 확인해주세요)';
+    return;
+  }
+  msgInput.value = '';
+  await renderFreeboard();
+}
+document.getElementById('freeboardSubmitBtn').onclick = submitFreeboardPost;
+document.getElementById('freeboardBtn').onclick = () => {
+  document.getElementById('freeboardModal').style.display = 'flex';
+  document.getElementById('freeboardError').textContent = '';
+  renderFreeboard();
+};
+document.getElementById('closeFreeboardBtn').onclick = () => {
+  document.getElementById('freeboardModal').style.display = 'none';
+};
+
 // ---------- 숨겨진 관리자 통계 화면 (타이틀 화면에서 "admin" 순서로 입력 시 노출) ----------
 let secretCodeBuffer = '';
 const SECRET_CODE = 'admin';
@@ -3010,6 +3118,33 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
       return list;
     } catch (e) {
       console.error("리더보드 조회 실패:", e);
+      return [];
+    }
+  };
+
+  // 자유게시판
+  window.fbSubmitPost = async function (entry) {
+    try {
+      await addDoc(collection(db, "freeboard"), {
+        nickname: entry.nickname,
+        message: entry.message,
+        createdAt: serverTimestamp()
+      });
+      return true;
+    } catch (e) {
+      console.error("게시글 등록 실패:", e);
+      return false;
+    }
+  };
+  window.fbLoadPosts = async function () {
+    try {
+      const q = query(collection(db, "freeboard"), orderBy("createdAt", "desc"), limit(50));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      return list;
+    } catch (e) {
+      console.error("게시글 조회 실패:", e);
       return [];
     }
   };
