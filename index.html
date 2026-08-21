@@ -167,6 +167,13 @@
     font-size: 13px; border-bottom: 1px solid #262636; color: #eee;
   }
   #startLeaderboardList .rank { width: 28px; color: #999; }
+  .lbTabs { display: flex; gap: 6px; width: 90%; max-width: 340px; margin-bottom: 8px; }
+  .lbTabBtn {
+    flex: 1; padding: 6px 0; font-size: 13px; font-weight: bold;
+    background: transparent; border: 1px solid #444; color: #999;
+    border-radius: 6px; cursor: pointer;
+  }
+  .lbTabBtn.active { background: #ffd54f; color: #1a1a26; border-color: #ffd54f; }
   #closeLeaderboardBtn, #closeNoticeBtn {
     margin-top: 16px; padding: 8px 24px; font-size: 14px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
@@ -370,6 +377,10 @@
   </div>
   <div id="leaderboardWrap">
     <h3>🏆 리더보드 TOP 20</h3>
+    <div class="lbTabs">
+      <button class="lbTabBtn" data-platform="pc">PC</button>
+      <button class="lbTabBtn" data-platform="mobile">모바일</button>
+    </div>
     <ol id="leaderboardList"></ol>
     <button id="playAgainBtn">다시 시작</button>
   </div>
@@ -388,6 +399,10 @@
 
 <div id="startLeaderboardModal">
   <h2>🏆 리더보드 TOP 20</h2>
+  <div class="lbTabs" id="startLbTabs">
+    <button class="lbTabBtn" data-platform="pc">PC</button>
+    <button class="lbTabBtn" data-platform="mobile">모바일</button>
+  </div>
   <ol id="startLeaderboardList"></ol>
   <button id="closeLeaderboardBtn">닫기</button>
 </div>
@@ -2675,15 +2690,19 @@ function endGame() {
   document.getElementById('gameOverModal').style.display = 'flex';
 }
 
-// ---------- 리더보드 (Firestore 연동, module 스크립트의 window.fb* 함수 사용) ----------
-async function renderLeaderboard(highlightEntry, targetId) {
+// ---------- 리더보드 (Firestore 연동, PC/모바일 컬렉션 분리) ----------
+function leaderboardCollectionFor(platform) {
+  return platform === 'mobile' ? 'leaderboard_mobile' : 'leaderboard';
+}
+
+async function renderLeaderboard(highlightEntry, targetId, platform) {
   const listEl = document.getElementById(targetId || 'leaderboardList');
   listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
   if (!window.fbLoadTop20) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadTop20();
+  const list = await window.fbLoadTop20(leaderboardCollectionFor(platform));
   listEl.innerHTML = '';
   if (!list.length) {
     listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
@@ -2699,6 +2718,33 @@ async function renderLeaderboard(highlightEntry, targetId) {
     listEl.appendChild(li);
   });
 }
+
+function setActiveLbTab(tabsContainer, platform) {
+  tabsContainer.querySelectorAll('.lbTabBtn').forEach(b => {
+    b.classList.toggle('active', b.dataset.platform === platform);
+  });
+}
+
+// 게임오버 화면 리더보드 탭 (플레이한 기기 기준으로 기본 선택)
+const leaderboardWrapTabs = document.querySelector('#leaderboardWrap .lbTabs');
+setActiveLbTab(leaderboardWrapTabs, isMobileLayout ? 'mobile' : 'pc');
+leaderboardWrapTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
+  btn.onclick = () => {
+    setActiveLbTab(leaderboardWrapTabs, btn.dataset.platform);
+    renderLeaderboard(null, 'leaderboardList', btn.dataset.platform);
+  };
+});
+
+// 시작 화면 리더보드 탭
+const startLbTabs = document.getElementById('startLbTabs');
+setActiveLbTab(startLbTabs, isMobileLayout ? 'mobile' : 'pc');
+startLbTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
+  btn.onclick = () => {
+    setActiveLbTab(startLbTabs, btn.dataset.platform);
+    renderLeaderboard(null, 'startLeaderboardList', btn.dataset.platform);
+  };
+});
+
 async function submitScore() {
   const nameInput = document.getElementById('nicknameInput');
   let name = nameInput.value.trim();
@@ -2707,18 +2753,20 @@ async function submitScore() {
   const btn = document.getElementById('submitScoreBtn');
   btn.disabled = true;
   btn.textContent = '등록 중...';
+  const myPlatform = isMobileLayout ? 'mobile' : 'pc'; // 실제 플레이한 기기 기준으로 해당 컬렉션에 등록
   const entry = { name, score: lastScore, level, kills: killCount, time: Math.floor(gameTime) };
-  const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry) : false;
+  const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry, leaderboardCollectionFor(myPlatform)) : false;
   btn.disabled = false;
   btn.textContent = '리더보드 등록';
   document.getElementById('nicknameEntry').style.display = 'none';
   document.getElementById('leaderboardWrap').style.display = 'block';
+  setActiveLbTab(leaderboardWrapTabs, myPlatform);
   if (!ok) {
     document.getElementById('leaderboardList').innerHTML =
       '<li style="justify-content:center; color:#e33;">등록 실패 (네트워크/설정을 확인해주세요)</li>';
     return;
   }
-  await renderLeaderboard(entry, 'leaderboardList');
+  await renderLeaderboard(entry, 'leaderboardList', myPlatform);
 }
 document.getElementById('submitScoreBtn').onclick = submitScore;
 document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
@@ -2729,7 +2777,9 @@ document.getElementById('playAgainBtn').onclick = initGame;
 // 시작 화면에서 리더보드 조회
 document.getElementById('viewLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'flex';
-  renderLeaderboard(null, 'startLeaderboardList');
+  const defaultPlatform = isMobileLayout ? 'mobile' : 'pc';
+  setActiveLbTab(startLbTabs, defaultPlatform);
+  renderLeaderboard(null, 'startLeaderboardList', defaultPlatform);
 };
 document.getElementById('closeLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'none';
@@ -2901,9 +2951,9 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  window.fbSubmitScore = async function (entry) {
+  window.fbSubmitScore = async function (entry, collectionName) {
     try {
-      await addDoc(collection(db, "leaderboard"), {
+      await addDoc(collection(db, collectionName || "leaderboard"), {
         name: entry.name,
         score: entry.score,
         level: entry.level,
@@ -2918,9 +2968,9 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
     }
   };
 
-  window.fbLoadTop20 = async function () {
+  window.fbLoadTop20 = async function (collectionName) {
     try {
-      const q = query(collection(db, "leaderboard"), orderBy("score", "desc"), limit(20));
+      const q = query(collection(db, collectionName || "leaderboard"), orderBy("score", "desc"), limit(20));
       const snap = await getDocs(q);
       const list = [];
       snap.forEach(d => list.push(d.data()));
