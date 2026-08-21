@@ -203,10 +203,11 @@
     background: #241a1a; border: 1px solid #4a2c2c; border-radius: 8px;
     box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
   }
-  #freeboardNickInput, #freeboardTitleInput, #freeboardPwInput {
+  #freeboardNickInput, #freeboardTitleInput, #freeboardPwInput, #freeboardAdminCodeInput {
     padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #5a4040;
     background: #1a1414; color: #eee;
   }
+  #freeboardAdminCodeInput { font-size: 11px; opacity: 0.6; }
   #freeboardMsgInput {
     padding: 8px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #5a4040;
     background: #1a1414; color: #eee; resize: vertical; min-height: 60px; font-family: inherit;
@@ -273,6 +274,11 @@
     position: fixed; top: 8px; left: 10px; z-index: 46;
     font-size: 11px; color: rgba(255,255,255,0.4);
     pointer-events: none;
+  }
+  #globalStats {
+    position: fixed; top: 8px; right: 10px; z-index: 46;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    pointer-events: none; text-align: right;
   }
   #adminModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -449,6 +455,7 @@
 </div>
 
 <div id="buildVersion">v0.9.1</div>
+<div id="globalStats">🎮 누적 플레이 <span id="totalPlaysText">-</span>회 · 👥 현재 접속자 <span id="playerCountText">-</span>명</div>
 
 <div id="startModal">
   <h1>🐾 리센느의 백제어택</h1>
@@ -495,6 +502,7 @@
       <input id="freeboardTitleInput" maxlength="40" placeholder="제목" />
       <textarea id="freeboardMsgInput" maxlength="200" placeholder="내용을 입력해주세요 (최대 200자)"></textarea>
       <input id="freeboardPwInput" type="password" maxlength="20" placeholder="비밀번호 (수정/삭제 시 필요)" />
+      <input id="freeboardAdminCodeInput" maxlength="30" placeholder="운영자 코드 (해당자만 입력)" />
       <div id="freeboardError"></div>
       <button id="freeboardSubmitBtn">등록</button>
     </div>
@@ -2997,6 +3005,9 @@ document.getElementById('closeNoticeBtn').onclick = () => {
 let freeboardPosts = [];
 let freeboardDetailIndex = -1;
 
+// 운영자만 아는 코드 - 게시글 등록 시 이걸 입력하면 운영자 배지가 붙음 (Firestore 규칙에서도 동일 코드로 검증)
+const FREEBOARD_ADMIN_CODE = 'rescene-pd-2026-op';
+
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -3012,8 +3023,8 @@ function showFreeboardDetail(index) {
   freeboardDetailIndex = index;
   document.getElementById('freeboardListView').style.display = 'none';
   document.getElementById('freeboardDetailView').style.display = 'block';
-  document.getElementById('freeboardDetailTitle').textContent = p.title || '(제목 없음)';
-  document.getElementById('freeboardDetailMeta').textContent = p.nickname || '익명의 리센느';
+  document.getElementById('freeboardDetailTitle').textContent = (p.isAdmin ? '👑 ' : '') + (p.title || '(제목 없음)');
+  document.getElementById('freeboardDetailMeta').textContent = (p.nickname || '익명의 리센느') + (p.isAdmin ? ' · 운영자' : '');
   document.getElementById('freeboardDetailContent').textContent = p.message || '';
 }
 
@@ -3104,10 +3115,10 @@ async function renderFreeboard() {
     const li = document.createElement('li');
     const titleDiv = document.createElement('div');
     titleDiv.className = 'fbTitleText';
-    titleDiv.textContent = p.title || '(제목 없음)';
+    titleDiv.textContent = (p.isAdmin ? '👑 ' : '') + (p.title || '(제목 없음)');
     const nickDiv = document.createElement('div');
     nickDiv.className = 'fbNick';
-    nickDiv.textContent = p.nickname || '익명의 리센느';
+    nickDiv.textContent = (p.nickname || '익명의 리센느') + (p.isAdmin ? ' · 운영자' : '');
     li.appendChild(titleDiv);
     li.appendChild(nickDiv);
     li.onclick = () => showFreeboardDetail(i);
@@ -3120,6 +3131,7 @@ async function submitFreeboardPost() {
   const titleInput = document.getElementById('freeboardTitleInput');
   const msgInput = document.getElementById('freeboardMsgInput');
   const pwInput = document.getElementById('freeboardPwInput');
+  const adminCodeInput = document.getElementById('freeboardAdminCodeInput');
   const errorEl = document.getElementById('freeboardError');
   let nick = nickInput.value.trim();
   if (!nick) nick = '익명의 리센느';
@@ -3141,6 +3153,9 @@ async function submitFreeboardPost() {
     errorEl.textContent = '수정/삭제 시 필요한 비밀번호를 입력해주세요.';
     return;
   }
+  const adminCodeRaw = adminCodeInput.value.trim();
+  const isAdmin = adminCodeRaw !== '' && adminCodeRaw === FREEBOARD_ADMIN_CODE;
+  const adminCode = isAdmin ? adminCodeRaw : ''; // 코드가 틀렸으면 그냥 일반 글로 등록 (에러 안 띄우고 조용히 무시)
   if (containsProfanity(nick) || containsProfanity(title) || containsProfanity(msg)) {
     errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
@@ -3150,7 +3165,7 @@ async function submitFreeboardPost() {
   btn.disabled = true;
   btn.textContent = '등록 중...';
   const passwordHash = await hashPassword(pw);
-  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash }) : false;
+  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin, adminCode }) : false;
   btn.disabled = false;
   btn.textContent = '등록';
   if (!ok) {
@@ -3160,6 +3175,7 @@ async function submitFreeboardPost() {
   titleInput.value = '';
   msgInput.value = '';
   pwInput.value = '';
+  adminCodeInput.value = '';
   await renderFreeboard();
 }
 document.getElementById('freeboardSubmitBtn').onclick = submitFreeboardPost;
@@ -3237,14 +3253,50 @@ document.getElementById('closeAdminBtn').onclick = () => {
   document.getElementById('adminModal').style.display = 'none';
 };
 
-document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm(); decodeCompanionVoices(); initGame(); };
+document.getElementById('startBtn').onclick = () => {
+  ensureAudioCtx(); startBgm(); decodeCompanionVoices(); initGame();
+  if (window.fbIncrementTotalPlays) {
+    window.fbIncrementTotalPlays().then(() => {
+      // 방금 내가 누른 것까지 반영해서 즉시 재조회
+      if (window.fbGetTotalPlays) {
+        window.fbGetTotalPlays().then(n => {
+          if (n !== null) document.getElementById('totalPlaysText').textContent = n.toLocaleString();
+        });
+      }
+    });
+  }
+};
+
+// 타이틀 화면 상단: 누적 플레이 횟수 조회 + 실시간 접속자 수 프레즌스 시작
+window.addEventListener('load', () => {
+  const tryInitStats = () => {
+    if (window.fbGetTotalPlays) {
+      window.fbGetTotalPlays().then(n => {
+        if (n !== null) document.getElementById('totalPlaysText').textContent = n.toLocaleString();
+      });
+    }
+    if (window.fbInitPresence) {
+      window.fbInitPresence((count) => {
+        document.getElementById('playerCountText').textContent = count.toLocaleString();
+      });
+    }
+    if (!window.fbGetTotalPlays || !window.fbInitPresence) {
+      setTimeout(tryInitStats, 300); // 모듈 스크립트 로딩이 아직 안 끝났으면 잠깐 뒤 재시도
+    }
+  };
+  tryInitStats();
+});
 </script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp, doc, updateDoc
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp,
+    doc, updateDoc, setDoc, getDoc, increment
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+  import {
+    getDatabase, ref, onValue, onDisconnect, set, push
+  } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB7hwVcvAJ6YY76SylfQgVSUWi-T5BbgNI",
@@ -3253,11 +3305,15 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
     storageBucket: "rescene-61ab9.firebasestorage.app",
     messagingSenderId: "87152811356",
     appId: "1:87152811356:web:575bc1702c5e78b1563599",
-    measurementId: "G-TZQ8TV2SSS"
+    measurementId: "G-TZQ8TV2SSS",
+    // ⚠️ Realtime Database를 콘솔에서 활성화한 뒤, 발급된 실제 URL로 반드시 교체해주세요
+    databaseURL: "https://rescene-61ab9-default-rtdb.firebaseio.com"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  let rtdb = null;
+  try { rtdb = getDatabase(app); } catch (e) { console.warn('Realtime Database 연결 실패(설정 필요):', e); }
 
   window.fbSubmitScore = async function (entry, collectionName) {
     try {
@@ -3297,6 +3353,8 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
         title: entry.title,
         message: entry.message,
         passwordHash: entry.passwordHash,
+        isAdmin: !!entry.isAdmin,
+        adminCode: entry.adminCode || '',
         deleted: false,
         createdAt: serverTimestamp()
       });
@@ -3344,6 +3402,48 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
     } catch (e) {
       console.error("게시글 삭제 실패:", e);
       return false;
+    }
+  };
+
+  // ---------- 누적 플레이 횟수 (Firestore 카운터) ----------
+  window.fbGetTotalPlays = async function () {
+    try {
+      const snap = await getDoc(doc(db, "stats", "global"));
+      return snap.exists() ? (snap.data().totalPlays || 0) : 0;
+    } catch (e) {
+      console.error("누적 플레이 횟수 조회 실패:", e);
+      return null;
+    }
+  };
+  window.fbIncrementTotalPlays = async function () {
+    try {
+      await setDoc(doc(db, "stats", "global"), { totalPlays: increment(1) }, { merge: true });
+      return true;
+    } catch (e) {
+      console.error("누적 플레이 횟수 증가 실패:", e);
+      return false;
+    }
+  };
+
+  // ---------- 실시간 접속자 수 (Realtime Database 프레즌스 - 연결 끊김 자동 감지) ----------
+  window.fbInitPresence = function (onCountChange) {
+    if (!rtdb) { console.warn('Realtime Database 미설정으로 접속자 수 기능을 건너뜁니다.'); return; }
+    try {
+      const presenceListRef = ref(rtdb, 'presence');
+      const myRef = push(presenceListRef);
+      const connectedRef = ref(rtdb, '.info/connected');
+      onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+          onDisconnect(myRef).remove();
+          set(myRef, true);
+        }
+      });
+      onValue(presenceListRef, (snap) => {
+        const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+        onCountChange(count);
+      });
+    } catch (e) {
+      console.error("접속자 수 프레즌스 초기화 실패:", e);
     }
   };
 
