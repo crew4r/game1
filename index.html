@@ -187,6 +187,31 @@
     font-size: 11px; color: rgba(255,255,255,0.4);
     pointer-events: none;
   }
+  #adminModal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; z-index: 48; text-align: center;
+  }
+  #adminModal h2 { color: #ffd54f; margin-bottom: 4px; }
+  #adminModal .sub { color: #888; font-size: 11px; margin-bottom: 12px; }
+  #adminTableWrap {
+    width: 92%; max-width: 480px; max-height: 420px; overflow-y: auto;
+    background: #1a1a26; border-radius: 8px; border: 1px solid #333;
+  }
+  #adminTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #adminTable th {
+    position: sticky; top: 0; background: #22222f; color: #ffd54f;
+    padding: 8px 10px; text-align: left; border-bottom: 1px solid #333;
+  }
+  #adminTable td { padding: 7px 10px; color: #eee; border-bottom: 1px solid #262636; text-align: left; }
+  #adminTable td.num { text-align: right; }
+  #adminBarWrap { width: 60px; height: 6px; background: #333; border-radius: 3px; display: inline-block; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+  #adminTable .bar { height: 100%; background: linear-gradient(90deg,#3cf,#06a); }
+  #closeAdminBtn {
+    margin-top: 16px; padding: 8px 24px; font-size: 14px;
+    background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
   /* 모바일 가상 조이스틱 (터치한 지점에서 바로 생성되는 방식) */
   #touchZone {
     position: fixed; left: 0; top: 0; width: 100%; height: 100%;
@@ -352,6 +377,18 @@
     <li>피격 데미지 수치 표시 추가, 체력바·경험치바 디자인 개선</li>
   </ul>
   <button id="closeNoticeBtn">닫기</button>
+</div>
+
+<div id="adminModal">
+  <h2>📊 스킬 픽률 통계</h2>
+  <div class="sub">플레이어가 레벨업 카드에서 직접 고른 스킬만 집계 (컴패니언 랜덤 지급 제외)</div>
+  <div id="adminTableWrap">
+    <table id="adminTable">
+      <thead><tr><th>스킬</th><th>선택 횟수</th><th>비율</th></tr></thead>
+      <tbody id="adminTableBody"></tbody>
+    </table>
+  </div>
+  <button id="closeAdminBtn">닫기</button>
 </div>
 
 <script>
@@ -2137,6 +2174,67 @@ document.getElementById('closeNoticeBtn').onclick = () => {
   document.getElementById('noticeModal').style.display = 'none';
 };
 
+// ---------- 숨겨진 관리자 통계 화면 (타이틀 화면에서 "admin" 순서로 입력 시 노출) ----------
+let secretCodeBuffer = '';
+const SECRET_CODE = 'admin';
+window.addEventListener('keydown', (e) => {
+  const startVisible = document.getElementById('startModal').style.display !== 'none';
+  if (!startVisible) return;
+  if (e.key.length !== 1) return; // 일반 문자 키만 인식 (Shift, Enter 등 제외)
+  secretCodeBuffer = (secretCodeBuffer + e.key.toLowerCase()).slice(-SECRET_CODE.length);
+  if (secretCodeBuffer === SECRET_CODE) {
+    secretCodeBuffer = '';
+    openAdminPanel();
+  }
+});
+
+function skillDisplayName(skillKey) {
+  const w = WEAPON_POOL.find(w => w.key === skillKey);
+  if (w) return `${w.icon} ${w.name}`;
+  const p = PASSIVE_POOL.find(p => p.key === skillKey);
+  if (p) return `${p.icon} ${p.name}`;
+  return skillKey;
+}
+
+async function openAdminPanel() {
+  const modal = document.getElementById('adminModal');
+  const tbody = document.getElementById('adminTableBody');
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">불러오는 중...</td></tr>';
+  modal.style.display = 'flex';
+
+  if (!window.fbLoadAllSkillPicks) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#e33;">통계 연결 실패</td></tr>';
+    return;
+  }
+  const picks = await window.fbLoadAllSkillPicks();
+  if (!picks.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">아직 데이터가 없어요</td></tr>';
+    return;
+  }
+  const counts = {};
+  for (const p of picks) {
+    counts[p.skillKey] = (counts[p.skillKey] || 0) + 1;
+  }
+  const total = picks.length;
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  tbody.innerHTML = '';
+  for (const [key, count] of rows) {
+    const pct = ((count / total) * 100).toFixed(1);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${skillDisplayName(key)}</td>
+      <td class="num">${count}</td>
+      <td class="num"><span id="adminBarWrap"><span class="bar" style="width:${pct}%"></span></span>${pct}%</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+document.getElementById('closeAdminBtn').onclick = () => {
+  document.getElementById('adminModal').style.display = 'none';
+};
+
 document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm(); decodeCompanionVoices(); initGame(); };
 </script>
 
@@ -2199,6 +2297,20 @@ document.getElementById('startBtn').onclick = () => { ensureAudioCtx(); startBgm
       });
     } catch (e) {
       console.warn("스킬 픽 로그 실패:", e);
+    }
+  };
+
+  // 관리자 통계 화면용: 전체 스킬 픽 로그 조회 (최근 5000개까지)
+  window.fbLoadAllSkillPicks = async function () {
+    try {
+      const q = query(collection(db, "skillPicks"), limit(5000));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      return list;
+    } catch (e) {
+      console.error("스킬 픽 통계 조회 실패:", e);
+      return [];
     }
   };
 </script>
