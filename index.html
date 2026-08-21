@@ -903,6 +903,7 @@ let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeF
 let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
 let gameTime, killCount, spawnTimer, eliteSpawnTimer, running, lastTs;
 let pdSpawnTimer, pdArenaActive, pdArenaCenter, pdArenaRadius, pdArenaWalls;
+let pdEncounterCount, pdIsFirstEncounter;
 let pdArenaRadiusStart, pdArenaRadiusMin, pdArenaShrinkDuration;
 let pdCams, pdCueState, pdCueTimer, pdCueSignalTimer, pdCueWarnTimer, pdSafeZones, pdArenaStartTime;
 let pdWarnMsg, pdImpactFlash;
@@ -963,7 +964,9 @@ function initGame() {
   spawnTimer = 0;
   eliteSpawnTimer = 240; // 첫 엘리트몹은 4분에 등장 (초반 성장 시간을 좀 더 벌어변)
   eliteEncounterCount = 0;
-  pdSpawnTimer = 330; // 피디니무는 5분30초에 첫 등장 (꾸대표와 안 겹치게)
+  pdSpawnTimer = 270; // 피디니무는 4분30초에 첫 등장 (기존 5분30초에서 단축)
+  pdEncounterCount = 0;
+  pdIsFirstEncounter = false;
   pdArenaActive = false;
   pdArenaCenter = { x: 0, y: 0 };
   pdArenaRadius = 660; // 기존(220) 대비 300%로 확대
@@ -1091,6 +1094,8 @@ function triggerPDArena() {
   pdArenaCenter = { x: player.x, y: player.y };
   pdArenaStartTime = gameTime;
   pdArenaRadius = pdArenaRadiusStart; // 새 아레나는 항상 최대 반경에서 다시 시작
+  pdEncounterCount++;
+  pdIsFirstEncounter = (pdEncounterCount === 1); // 첫 조우만 부드럽게, 재출현부턴 기존 규칙 그대로
   enemies = enemies.filter(e => e.isElite && e.variant === 'bear'); // 일반 몹은 정리, 꾸대표만 예외로 유지
 
   // 원형 벽(백제자객) 생성
@@ -1107,7 +1112,8 @@ function triggerPDArena() {
   }
 
   const base = enemyStatsForTime(gameTime);
-  const hp = Math.round(base.hp * 26 * getPlayerPowerMultiplier());
+  const hpMultBase = pdIsFirstEncounter ? 16 : 26; // 첫 조우는 체력도 완화, 재출현부턴 기존 26배 유지
+  const hp = Math.round(base.hp * hpMultBase * getPlayerPowerMultiplier());
   enemies.push({
     x: pdArenaCenter.x, y: pdArenaCenter.y - 100,
     hp, maxHp: hp,
@@ -1440,7 +1446,7 @@ function update(dt) {
           if (t > 0) {
             const perp = Math.abs(rx * Math.sin(pdCam.fireAngle) - ry * Math.cos(pdCam.fireAngle));
             if (perp < 24) {
-              const dmg = 5 * (1 - player.armor);
+              const dmg = (pdIsFirstEncounter ? 3 : 5) * (1 - player.armor);
               player.hp -= dmg;
               spawnParticles(player.x, player.y, '#ffd700', 3);
               spawnDamageNumber(player.x, player.y, dmg, 'player');
@@ -1492,7 +1498,7 @@ function update(dt) {
         spawnParticles(pdArenaCenter.x, pdArenaCenter.y, '#ff1744', 10);
         playBeep(110, 0.3, 'sawtooth', 0.22);
         if (!inSafeZone) {
-          const dmg = player.maxHp * 0.45 * (1 - player.armor);
+          const dmg = player.maxHp * (pdIsFirstEncounter ? 0.30 : 0.45) * (1 - player.armor);
           player.hp -= dmg;
           spawnParticles(player.x, player.y, '#ff1744', 20);
           spawnDamageNumber(player.x, player.y, dmg, 'player');
