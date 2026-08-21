@@ -957,7 +957,7 @@ function enemyStatsForTime(t) {
   // 시간에 비례해 완만하게 추가 성장시킴 (1분마다 약 +8%) - 경험치 보상도 동일하게 적용해서
   // 후반부에 몹은 세지는데 경험치는 그대로인 문제를 방지
   if (t > 180) {
-    const growth = 1 + ((t - 180) / 60) * 0.08;
+    const growth = Math.pow(1.08, (t - 180) / 60); // 선형 → 복리로 전환 (플레이어 스택 폭주에 맞춰 계속 압박)
     hp = Math.round(hp * growth);
     dmg = Math.round(dmg * growth);
     xpVal = Math.round(xpVal * growth);
@@ -1362,11 +1362,18 @@ function fireWeapon(w) {
   const dmg = w.dmg * (player.dmgMult || 1);
 
   if (w.type === 'chase') {
-    // 우이: 가장 가까운 적에게 화염 발사
+    // 우이: 가장 가까운 적들에게 화염 발사 (발사량이 여럿이면 각각 다른 적을 정확히 조준)
     const nearest = findNearestEnemy(player.x, player.y);
     if (!nearest) return;
+    let targets = [nearest];
+    if (w.count > 1) {
+      const candidates = queryEnemiesNear(player.x, player.y, 500);
+      candidates.sort((a, b) => dist(player, a) - dist(player, b));
+      targets = candidates.length ? candidates.slice(0, w.count) : [nearest];
+    }
     for (let i = 0; i < w.count; i++) {
-      const a = Math.atan2(nearest.y - player.y, nearest.x - player.x) + (i - (w.count - 1) / 2) * 0.25;
+      const t = targets[i % targets.length]; // 적이 부족하면 가까운 적을 다시 조준
+      const a = Math.atan2(t.y - player.y, t.x - player.x);
       bullets.push({
         x: player.x, y: player.y, r: 6,
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
@@ -1510,6 +1517,19 @@ function spawnDamageNumber(x, y, amount, kind) {
 
 // ---------- 레벨업 카드 ----------
 // 경험치가 몇 레벨 분량이든, 오른 만큼 레벨업 카드를 순서대로(대기열) 띄워주는 공용 함수
+// 패시브가 이미 최종 상한에 도달했는지 확인 (도달 시 카드 풀에서 제외해서 무의미한 픽 방지)
+function isPassiveMaxed(key) {
+  switch (key) {
+    case 'speed': return player.speed >= 220 * 1.8 - 0.01;
+    case 'magnet': return player.magnetRange >= 60 * 2.5 - 0.01;
+    case 'dmgup': return (player.dmgMult || 1) >= 2.0 - 0.001;
+    case 'luck': return (player.luck || 1) >= 2.5 - 0.001;
+    case 'cdr': return (player.cdr || 0) >= 0.5 - 0.001;
+    case 'armor': return player.armor >= 0.6 - 0.001;
+    default: return false; // maxhp 등 상한 없는 패시브는 항상 false
+  }
+}
+
 function checkLevelUp() {
   let leveledUp = false;
   while (xp >= xpToNext) {
@@ -1557,9 +1577,9 @@ function openLevelUp() {
       options.push({ type: 'new', base: wp });
     }
   }
-  // 패시브
+  // 패시브 (이미 최종 상한에 도달한 건 제외)
   for (const pp of PASSIVE_POOL) {
-    options.push({ type: 'passive', base: pp });
+    if (!isPassiveMaxed(pp.key)) options.push({ type: 'passive', base: pp });
   }
 
   const picks = [];
@@ -1632,7 +1652,7 @@ function applyAnimalSkill(key) {
       const pool = [];
       for (const w of weapons) if (w.level < 5) pool.push({ type: 'upgrade', weapon: w });
       for (const wp of WEAPON_POOL) if (!weapons.find(w => w.key === wp.key) && weapons.length < 6) pool.push({ type: 'new', base: wp });
-      for (const pp of PASSIVE_POOL) pool.push({ type: 'passive', base: pp });
+      for (const pp of PASSIVE_POOL) if (!isPassiveMaxed(pp.key)) pool.push({ type: 'passive', base: pp });
       if (!pool.length) break;
       const opt = choice(pool);
       applyChoice(opt);
@@ -1692,13 +1712,13 @@ function applyChoice(opt) {
     weapons.push({ ...opt.base, level: 1, timer: 0, angle: 0 });
   } else if (opt.type === 'passive') {
     switch (opt.base.key) {
-      case 'speed': player.speed *= 1.10; break;
+      case 'speed': player.speed = Math.min(220 * 1.8, player.speed * 1.10); break;
       case 'maxhp': player.maxHp += 20; player.hp += 20; break;
       case 'armor': player.armor = Math.min(0.6, player.armor + 0.1); break;
-      case 'magnet': player.magnetRange *= 1.20; break;
+      case 'magnet': player.magnetRange = Math.min(60 * 2.5, player.magnetRange * 1.20); break;
       case 'cdr': player.cdr = Math.min(0.5, (player.cdr || 0) + 0.08); break;
-      case 'dmgup': player.dmgMult = (player.dmgMult || 1) + 0.05; break;
-      case 'luck': player.luck = (player.luck || 1) + 0.2; break;
+      case 'dmgup': player.dmgMult = Math.min(2.0, (player.dmgMult || 1) + 0.05); break;
+      case 'luck': player.luck = Math.min(2.5, (player.luck || 1) + 0.2); break;
     }
   }
 }
