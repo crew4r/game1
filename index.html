@@ -1048,6 +1048,8 @@ window.addEventListener('keydown', (e) => {
 let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx;
 let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
 let gameTime, growthTime, killCount, spawnTimer, eliteSpawnTimer, running, lastTs;
+let postBossGraceTimer;
+const POST_BOSS_GRACE_DURATION = 18; // 피디니무 클리어 직후 숨 돌릴 유예 시간(초), 등급 상관없이 동일 적용
 let pdSpawnTimer, pdArenaActive, pdArenaCenter, pdArenaRadius, pdArenaWalls;
 let pdEncounterCount, pdIsFirstEncounter;
 let pdArenaRadiusStart, pdArenaRadiusMin, pdArenaShrinkDuration;
@@ -1107,6 +1109,7 @@ function initGame() {
   camera = { x: 0, y: 0 };
   gameTime = 0;
   growthTime = 0;
+  postBossGraceTimer = 0;
   killCount = 0;
   spawnTimer = 0;
   eliteSpawnTimer = 240; // 첫 엘리트몹은 4분에 등장 (초반 성장 시간을 좀 더 벌어변)
@@ -1317,6 +1320,7 @@ function endPDArena(victory) {
   pdArenaWalls = [];
   pdWarnMsg = { text: '', timer: 0, maxTimer: 1, color: '#fff' }; // 전투 종료 시 머리 위 경고문 일괄 제거
   spawnTimer = Math.max(spawnTimer, 1.5); // 아레나 직후 바로 몹이 몰려나오지 않게 최소 숨 돌릴 틈을 줌
+  postBossGraceTimer = POST_BOSS_GRACE_DURATION; // 등급과 무관하게 동일한 유예 구간 부여 (빌드 완성도는 이미 실력 영역)
   if (victory) {
     let grade, extraCards;
     if (duration < 20) { grade = 'S'; extraCards = 2; }
@@ -1455,11 +1459,17 @@ function update(dt) {
 
   // 스폰 (피디니무 아레나 진행 중엔 일시 중단 - 순수 결투 진행)
   if (!pdArenaActive) {
+    // 보스 클리어 직후 유예 구간: 0(막 끝난 직후, 가장 완화) ~ 1(유예 종료, 원래 페이스)로 선형 복귀
+    if (postBossGraceTimer > 0) postBossGraceTimer = Math.max(0, postBossGraceTimer - dt);
+    const graceProgress = 1 - (postBossGraceTimer / POST_BOSS_GRACE_DURATION);
+
     spawnTimer -= dt;
-    const spawnInterval = Math.max(0.32, 1.4 - growthTime / 90); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+    const spawnInterval = spawnIntervalBase * (1 + (1 - graceProgress) * 1.2); // 유예 시작 시 간격 최대 2.2배로 완화
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
-      const burst = Math.min(11, 1 + Math.floor(growthTime / 55)); // 버스트 상한 상향(8->11)으로 후반 압박 강화
+      const burstBase = Math.min(11, 1 + Math.floor(growthTime / 55)); // 버스트 상한 상향(8->11)으로 후반 압박 강화
+      const burst = Math.max(1, Math.round(burstBase * (0.35 + 0.65 * graceProgress))); // 유예 시작 시 버스트도 35%까지 완화
       for (let i = 0; i < burst; i++) {
         if (enemies.length >= MAX_ENEMIES) {
           // 상한에 도달하면 스폰을 그냥 멈추는 대신, 플레이어에게서 가장 멀리 뒤처진
