@@ -454,7 +454,7 @@
   </div>
 </div>
 
-<div id="buildVersion">v0.9.1</div>
+<div id="buildVersion">v0.9.2</div>
 <div id="globalStats">🎮 누적 플레이 <span id="totalPlaysText">-</span>회 · 👥 현재 접속자 <span id="playerCountText">-</span>명</div>
 
 <div id="startModal">
@@ -1055,7 +1055,7 @@ const WEAPON_POOL = [
 const PASSIVE_POOL = [
   { key: 'speed',  name: '타조',        icon: '🐦', desc: '이동속도 +10%' },
   { key: 'maxhp',  name: '거제굴톤',    icon: '🦪', desc: '최대 체력 +40' },
-  { key: 'armor',  name: '덕연이딸',    icon: '🤱', desc: '받는 피해 -10%' },
+  { key: 'armor',  name: '덕연이딸',    icon: '🤱', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
   { key: 'magnet', name: '밥은 줍니까?',   icon: '🍚', desc: '경험치 흡수 범위 +20%' },
   { key: 'cdr',    name: '거제 폭격기', icon: '🚀', desc: '모든 무기 쿨다운 -8%' },
   { key: 'dmgup',  name: '거제 불주먹', icon: '👊', desc: '모든 무기 피해량 +5%' },
@@ -1071,7 +1071,7 @@ function initGame() {
     hp: 100, maxHp: 100,
     invuln: 0,
     magnetRange: 60,
-    armor: 0,
+    shieldCount: 0, // 덕연이딸: 무적 실드 개수(최대 5)
     facing: 1,
     facingUp: false,
     cdr: 0,
@@ -1506,11 +1506,15 @@ function update(dt) {
     resolveObstacleCollision(e);
     resolvePDWallCollision(e);
     if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
-      const dmg = e.dmg * (1 - player.armor);
-      player.hp -= dmg;
-      player.invuln = 0.5;
-      spawnParticles(player.x, player.y, '#f55', 6);
-      spawnDamageNumber(player.x, player.y, dmg, 'player');
+      if (consumePlayerShield(player.x, player.y)) {
+        player.invuln = 0.5;
+      } else {
+        const dmg = e.dmg;
+        player.hp -= dmg;
+        player.invuln = 0.5;
+        spawnParticles(player.x, player.y, '#f55', 6);
+        spawnDamageNumber(player.x, player.y, dmg, 'player');
+      }
     }
 
     // 엘리트몹: 일정 주기로 곰 탈을 플레이어에게 던짐 (원거리 견제 공격) - 꾸대표 전용
@@ -1537,11 +1541,15 @@ function update(dt) {
     th.life -= dt;
     th.spin += dt * 10;
     if (!th.hit && dist(th, player) < th.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
-      const dmg = th.dmg * (1 - player.armor);
-      player.hp -= dmg;
-      player.invuln = 0.5;
-      spawnParticles(player.x, player.y, '#b26fe0', 8);
-      spawnDamageNumber(player.x, player.y, dmg, 'player');
+      if (consumePlayerShield(player.x, player.y)) {
+        player.invuln = 0.5;
+      } else {
+        const dmg = th.dmg;
+        player.hp -= dmg;
+        player.invuln = 0.5;
+        spawnParticles(player.x, player.y, '#b26fe0', 8);
+        spawnDamageNumber(player.x, player.y, dmg, 'player');
+      }
       th.hit = true;
     }
   }
@@ -1594,10 +1602,12 @@ function update(dt) {
           if (t > 0) {
             const perp = Math.abs(rx * Math.sin(pdCam.fireAngle) - ry * Math.cos(pdCam.fireAngle));
             if (perp < 24) {
-              const dmg = (pdIsFirstEncounter ? 3 : 5) * (1 - player.armor);
-              player.hp -= dmg;
-              spawnParticles(player.x, player.y, '#ffd700', 3);
-              spawnDamageNumber(player.x, player.y, dmg, 'player');
+              if (!consumePlayerShield(player.x, player.y)) {
+                const dmg = pdIsFirstEncounter ? 3 : 5;
+                player.hp -= dmg;
+                spawnParticles(player.x, player.y, '#ffd700', 3);
+                spawnDamageNumber(player.x, player.y, dmg, 'player');
+              }
             }
           }
         }
@@ -1646,10 +1656,12 @@ function update(dt) {
         spawnParticles(pdArenaCenter.x, pdArenaCenter.y, '#ff1744', 10);
         playBeep(110, 0.3, 'sawtooth', 0.22);
         if (!inSafeZone) {
-          const dmg = player.maxHp * (pdIsFirstEncounter ? 0.30 : 0.45) * (1 - player.armor);
-          player.hp -= dmg;
-          spawnParticles(player.x, player.y, '#ff1744', 20);
-          spawnDamageNumber(player.x, player.y, dmg, 'player');
+          if (!consumePlayerShield(player.x, player.y)) {
+            const dmg = player.maxHp * (pdIsFirstEncounter ? 0.30 : 0.45);
+            player.hp -= dmg;
+            spawnParticles(player.x, player.y, '#ff1744', 20);
+            spawnDamageNumber(player.x, player.y, dmg, 'player');
+          }
           showPDWarning('💥 피격!', 0.6, '#ff1744');
         } else {
           showPDWarning('✅ 회피 성공!', 0.8, '#69f0ae');
@@ -1997,6 +2009,20 @@ function spawnDamageNumber(x, y, amount, kind) {
   });
 }
 
+// 덕연이딸 실드: 보유 중이면 이번 피격을 완전히 무효화(1회 무적 판정)하고 1개 소모
+function consumePlayerShield(x, y) {
+  if (player.shieldCount > 0) {
+    player.shieldCount--;
+    spawnParticles(x, y, '#4fc3f7', 14);
+    floatingTexts.push({
+      x, y: y - 24, text: '🛡️ 방어!',
+      life: 0.9, maxLife: 0.9, size: 15, color: '#4fc3f7',
+    });
+    return true;
+  }
+  return false;
+}
+
 // ---------- 레벨업 카드 ----------
 // 경험치가 몇 레벨 분량이든, 오른 만큼 레벨업 카드를 순서대로(대기열) 띄워주는 공용 함수
 // 패시브가 이미 최종 상한에 도달했는지 확인 (도달 시 카드 풀에서 제외해서 무의미한 픽 방지)
@@ -2007,7 +2033,7 @@ function isPassiveMaxed(key) {
     case 'dmgup': return (player.dmgMult || 1) >= 2.0 - 0.001;
     case 'luck': return (player.luck || 1) >= 2.5 - 0.001;
     case 'cdr': return (player.cdr || 0) >= 0.5 - 0.001;
-    case 'armor': return player.armor >= 0.6 - 0.001;
+    case 'armor': return player.shieldCount >= 5;
     default: return false; // maxhp 등 상한 없는 패시브는 항상 false
   }
 }
@@ -2222,7 +2248,7 @@ function applyChoice(opt, ignoreCap) {
     switch (opt.base.key) {
       case 'speed': player.speed = Math.min(cap(220 * 1.8), player.speed * 1.10); break;
       case 'maxhp': player.maxHp += 40; player.hp += 40; break;
-      case 'armor': player.armor = Math.min(cap(0.6), player.armor + 0.1); break;
+      case 'armor': player.shieldCount = Math.min(5, player.shieldCount + 1); break;
       case 'magnet': player.magnetRange = Math.min(cap(60 * 2.5), player.magnetRange * 1.20); break;
       case 'cdr': player.cdr = Math.min(cap(0.5), (player.cdr || 0) + 0.08); break;
       case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.05); break;
@@ -2760,6 +2786,21 @@ function render() {
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 2;
       ctx.stroke();
+    }
+
+    // 덕연이딸 실드 아이콘: 캐릭터 왼쪽에 보유 개수만큼 작게 세로로 표시
+    if (player.shieldCount > 0) {
+      ctx.save();
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const iconSpacing = 13;
+      const startX = px - pw / 2 - 10;
+      const startY = py - ((player.shieldCount - 1) * iconSpacing) / 2;
+      for (let i = 0; i < player.shieldCount; i++) {
+        ctx.fillText('🛡️', startX, startY + i * iconSpacing);
+      }
+      ctx.restore();
     }
   }
 
