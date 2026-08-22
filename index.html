@@ -1034,7 +1034,7 @@ window.addEventListener('keydown', (e) => {
 // ---------- 게임 상태 ----------
 let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx;
 let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
-let gameTime, killCount, spawnTimer, eliteSpawnTimer, running, lastTs;
+let gameTime, growthTime, killCount, spawnTimer, eliteSpawnTimer, running, lastTs;
 let pdSpawnTimer, pdArenaActive, pdArenaCenter, pdArenaRadius, pdArenaWalls;
 let pdEncounterCount, pdIsFirstEncounter;
 let pdArenaRadiusStart, pdArenaRadiusMin, pdArenaShrinkDuration;
@@ -1047,7 +1047,7 @@ let pendingLevelUps = 0; // 한 번에 여러 레벨 오를 때, 카드 선택�
 const WEAPON_POOL = [
   { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 8,  cd: 0.6, count: 1, pierce: 1, speed: 420 },
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 88, throwRange: 260, flightTime: 0.5 },
-  { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개',    type: 'orbit', dmg: 4,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 2.4 },
+  { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개 + 출혈',    type: 'orbit', dmg: 4,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 3.12, bleedDps: 2, bleedDuration: 3 },
   { key: 'stopit',        name: '그만 좀 봅시다', icon: '✋', desc: '근접 적 밀치기 + 피해',       type: 'aoe',   dmg: 3,  cd: 0.4, range: 60, knockback: true },
   { key: 'chopstick',     name: '에디슨젓가락',   icon: '🥢', desc: '근접 부채꼴 샷건 다수 공격', type: 'aoe',   dmg: 11, cd: 0.9, range: 80 },
   { key: 'geojedaughter', name: '거제의 딸',      icon: '👶', desc: '주변 적 이동속도 감소 + 약한 피해', type: 'aoe',   dmg: 2,  cd: 0.5, range: 70 },
@@ -1093,6 +1093,7 @@ function initGame() {
   floatingTexts = [];
   camera = { x: 0, y: 0 };
   gameTime = 0;
+  growthTime = 0;
   killCount = 0;
   spawnTimer = 0;
   eliteSpawnTimer = 240; // 첫 엘리트몹은 4분에 등장 (초반 성장 시간을 좀 더 벌어변)
@@ -1174,7 +1175,7 @@ function spawnEnemy() {
   const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 60;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
-  const s = enemyStatsForTime(gameTime);
+  const s = enemyStatsForTime(growthTime);
   enemies.push({ x, y, ...s, maxHp: s.hp });
 }
 
@@ -1185,7 +1186,7 @@ function spawnEliteEnemy() {
   const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 80;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
-  const base = enemyStatsForTime(gameTime);
+  const base = enemyStatsForTime(growthTime);
 
   // 처음 만나는 엘리트는 더 부드럽게, 3번째부터는 지금 수준(체력×9/공격력×2.4)에 플레이어 실제 전투력까지 반영해 후반 압박 강화
   let hpMult, dmgMult, powerScaled = false;
@@ -1244,7 +1245,7 @@ function triggerPDArena() {
     });
   }
 
-  const base = enemyStatsForTime(gameTime);
+  const base = enemyStatsForTime(growthTime);
   const hpMultBase = pdIsFirstEncounter ? 16 : 26; // 첫 조우는 체력도 완화, 재출현부턴 기존 26배 유지
   const hp = Math.round(base.hp * hpMultBase * getPlayerPowerMultiplier());
   enemies.push({
@@ -1302,6 +1303,7 @@ function endPDArena(victory) {
   pdArenaActive = false;
   pdArenaWalls = [];
   pdWarnMsg = { text: '', timer: 0, maxTimer: 1, color: '#fff' }; // 전투 종료 시 머리 위 경고문 일괄 제거
+  spawnTimer = Math.max(spawnTimer, 1.5); // 아레나 직후 바로 몹이 몰려나오지 않게 최소 숨 돌릴 틈을 줌
   if (victory) {
     let grade, extraCards;
     if (duration < 20) { grade = 'S'; extraCards = 2; }
@@ -1370,6 +1372,10 @@ function getNearbyCompanions(x, y, margin) {
 // ---------- 업데이트 ----------
 function update(dt) {
   gameTime += dt;
+  // 피디니무 아레나 전투 중엔 몹 성장 곡선/스폰 페이스에 쓰이는 growthTime을 멈춰서
+  // 보스전을 오래 끌수록 끝난 직후 몹이 갑자기 확 세지고 몰려나오는 문제를 방지한다.
+  // (아레나 자체의 벽 축소 타이머·등급 판정 등은 계속 흐르는 gameTime을 그대로 사용)
+  if (!pdArenaActive) growthTime += dt;
   document.getElementById('timeText').textContent =
     String(Math.floor(gameTime / 60)).padStart(2, '0') + ':' +
     String(Math.floor(gameTime % 60)).padStart(2, '0');
@@ -1437,10 +1443,10 @@ function update(dt) {
   // 스폰 (피디니무 아레나 진행 중엔 일시 중단 - 순수 결투 진행)
   if (!pdArenaActive) {
     spawnTimer -= dt;
-    const spawnInterval = Math.max(0.32, 1.4 - gameTime / 90); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+    const spawnInterval = Math.max(0.32, 1.4 - growthTime / 90); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
-      const burst = Math.min(11, 1 + Math.floor(gameTime / 55)); // 버스트 상한 상향(8->11)으로 후반 압박 강화
+      const burst = Math.min(11, 1 + Math.floor(growthTime / 55)); // 버스트 상한 상향(8->11)으로 후반 압박 강화
       for (let i = 0; i < burst; i++) {
         if (enemies.length >= MAX_ENEMIES) {
           // 상한에 도달하면 스폰을 그냥 멈추는 대신, 플레이어에게서 가장 멀리 뒤처진
@@ -1487,6 +1493,15 @@ function update(dt) {
     e.facing = Math.cos(a) >= 0 ? 1 : -1;
     e.facingUp = Math.sin(a) < 0;
     if (e.slowTimer > 0) e.slowTimer -= dt;
+    if (e.bleedTimer > 0) {
+      e.hp -= (e.bleedDps || 0) * dt;
+      e.bleedTimer -= dt;
+      e.bleedTickAccum = (e.bleedTickAccum || 0) + dt;
+      if (e.bleedTickAccum >= 0.4) {
+        e.bleedTickAccum -= 0.4;
+        spawnParticles(e.x, e.y, '#8b0000', 1);
+      }
+    }
     if (e.knockbackCd > 0) e.knockbackCd -= dt;
     resolveObstacleCollision(e);
     resolvePDWallCollision(e);
@@ -1948,6 +1963,11 @@ function fireWeapon(w) {
           e.hp -= dmg;
           spawnParticles(e.x, e.y, '#b39ddb', 2);
           spawnDamageNumber(e.x, e.y, dmg, e.isElite ? 'elite' : 'normal');
+          if (w.bleedDps) {
+            // 출혈: 지속시간 갱신, 초당 데미지는 전역 데미지 배율만 적용(스택 없이 최신 값으로 갱신)
+            e.bleedTimer = w.bleedDuration || 3;
+            e.bleedDps = w.bleedDps * (player.dmgMult || 1);
+          }
           orbitHit = true;
         }
       }
