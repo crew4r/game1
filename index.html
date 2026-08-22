@@ -1321,13 +1321,13 @@ function spawnMiniCar(isFirstEncounter) {
   const spawnDist = Math.min((canvas.width / 2) / zoom, (canvas.height / 2) / zoom) * 0.7;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
-  const dmg = isFirstEncounter ? 5 : 8; // 큰 차와 같은 패턴으로 첫 조우만 완화
+  const dmg = isFirstEncounter ? 7.5 : 12; // 큰 차와 같은 패턴으로 첫 조우만 완화, 기존 대비 1.5배 상향
   const hpMultBase = isFirstEncounter ? 8 : 12; // 기존 3배는 너무 약해서 상향 (큰 차의 절반~2/3 수준)
   const hp = Math.round(base.hp * hpMultBase * getPlayerPowerMultiplier());
   enemies.push({
     x, y, hp, maxHp: hp,
     speed: player.speed * 0.75, // 대시 속도 계산 등에 참조용으로 유지 (배회 자체는 이 값의 55%로 움직임)
-    dmg, r: 21, color: '#ffccbc',
+    dmg, r: 32, color: '#ffccbc',
     xp: base.xp * 2,
     isElite: true,
     variant: 'miniCar',
@@ -1457,7 +1457,13 @@ function updateMiniCarWander(e, dt) {
   const spd = (e.slowTimer > 0 ? e.speed * (e.slowFactor || 1) : e.speed) * 0.55; // 배회 중엔 평소보다 여유롭게
   e.x += Math.cos(e.wanderAngle) * spd * dt;
   e.y += Math.sin(e.wanderAngle) * spd * dt;
-  resolveObstacleCollision(e);
+  if (getNearbyObstacles(e.x, e.y, OBSTACLE_CELL * 1.5).some(o => dist(e, o) < e.r + o.r)) {
+    // 밀려나는 대신 그 자리에서 즉시 그로기
+    e.miniState = 'groggy';
+    e.miniStateTimer = 1.2;
+    spawnParticles(e.x, e.y, '#8d6e63', 12);
+    return;
+  }
   e.viewDirX = Math.cos(e.wanderAngle);
   e.viewDirY = Math.sin(e.wanderAngle);
   e.facing = e.viewDirX >= 0 ? 1 : -1;
@@ -1507,11 +1513,23 @@ function updateMiniCarWander(e, dt) {
   }
 }
 
+// 작은 차 그로기: 장애물에 부딪혔을 때 그 자리에서 잠깐 멈춤 (공격 받기 좋은 타이밍)
+function updateMiniCarGroggy(e, dt) {
+  e.miniStateTimer -= dt;
+  if (e.miniStateTimer <= 0) e.miniState = 'follow';
+}
+
 function updateMiniCarDash(e, dt) {
   e.dashTimer -= dt;
   e.x += e.dashDirX * e.dashSpeed * dt;
   e.y += e.dashDirY * e.dashSpeed * dt;
-  resolveObstacleCollision(e);
+  if (getNearbyObstacles(e.x, e.y, OBSTACLE_CELL * 1.5).some(o => dist(e, o) < e.r + o.r)) {
+    // 밀려나는 대신 그 자리에서 즉시 그로기 (돌진도 거기서 종료)
+    e.miniState = 'groggy';
+    e.miniStateTimer = 1.2;
+    spawnParticles(e.x, e.y, '#8d6e63', 12);
+    return;
+  }
   e.viewDirX = e.dashDirX;
   e.viewDirY = e.dashDirY;
 
@@ -1836,8 +1854,9 @@ function update(dt) {
       continue;
     }
     if (e.variant === 'miniCar') {
-      // 작은 차도 완전히 별도 로직: 평소엔 배회, 큰 차 돌진 예고 때만 플레이어에게 돌진
+      // 작은 차도 완전히 별도 로직: 평소엔 배회, 큰 차 돌진 예고 때만 플레이어에게 돌진, 장애물 충돌 시 그로기
       if (e.miniState === 'dash') updateMiniCarDash(e, dt);
+      else if (e.miniState === 'groggy') updateMiniCarGroggy(e, dt);
       else updateMiniCarWander(e, dt);
       continue;
     }
@@ -2785,14 +2804,53 @@ function render() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 외곽 글로우: 어떤 배경 위에서도 아이콘 실루엣이 도드라지게
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.95)';
-    ctx.shadowBlur = 6;
-    ctx.fillText(o.icon, sx, sy);
-    ctx.fillText(o.icon, sx, sy);
-    ctx.restore();
-    ctx.fillText(o.icon, sx, sy);
+    if (o.isTree) {
+      // 나무는 오래된 이모지라 호환성 문제 없음 - 기존처럼 이모지로 그림
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(o.icon, sx, sy);
+      ctx.fillText(o.icon, sx, sy);
+      ctx.restore();
+      ctx.fillText(o.icon, sx, sy);
+    } else {
+      // 바위(🪨)는 비교적 최신 이모지라 일부 구형 기기/브라우저에서 빈 박스로 나오는 문제가 있어
+      // 폰트에 의존하지 않는 직접 그린 도형으로 대체
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 4;
+      const rr = o.r * 0.85;
+      ctx.beginPath();
+      ctx.moveTo(-rr * 0.9, rr * 0.35);
+      ctx.lineTo(-rr * 0.55, -rr * 0.55);
+      ctx.lineTo(-rr * 0.05, -rr * 0.85);
+      ctx.lineTo(rr * 0.55, -rr * 0.5);
+      ctx.lineTo(rr * 0.85, rr * 0.15);
+      ctx.lineTo(rr * 0.5, rr * 0.75);
+      ctx.lineTo(-rr * 0.35, rr * 0.8);
+      ctx.closePath();
+      ctx.fillStyle = '#8a8a8a';
+      ctx.fill();
+      ctx.strokeStyle = '#5c5c5c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // 하이라이트/음영 면 분할선 (입체감)
+      ctx.beginPath();
+      ctx.moveTo(-rr * 0.05, -rr * 0.85);
+      ctx.lineTo(-rr * 0.1, rr * 0.5);
+      ctx.lineTo(rr * 0.85, rr * 0.15);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-rr * 0.55, -rr * 0.55);
+      ctx.lineTo(-rr * 0.05, -rr * 0.85);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // 피디니무 아레나: 원형 벽 + 비행 카메라(레이저) + 큐사인 렌더링
@@ -3069,13 +3127,17 @@ function render() {
     ctx.fill();
   }
 
-  // 총알
+  // 총알 (화려해진 배경 위에서도 잘 보이도록 아이콘 계열엔 외곽 글로우 적용)
   for (const b of bullets) {
     if (b.icon) {
+      ctx.save();
       ctx.font = '18px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 6;
       ctx.fillText(b.icon, b.x + ox, b.y + oy);
+      ctx.restore();
     } else {
       ctx.beginPath();
       ctx.arc(b.x + ox, b.y + oy, b.r, 0, Math.PI * 2);
@@ -3153,11 +3215,18 @@ function render() {
   function drawMiniCar(e, ex, ey) {
     const size = e.r * 2.6 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
     const isDash = e.miniState === 'dash';
-    // 위협 오라 (대시 중엔 붉게, 평소엔 옅은 분홍)
-    const auraColor = isDash ? '255,82,82' : '255,138,128';
+    const isGroggy = e.miniState === 'groggy';
+    let jx = 0, jy = 0;
+    if (isGroggy) {
+      jx = (Math.random() - 0.5) * 4;
+      jy = (Math.random() - 0.5) * 4;
+    }
+    const gx = ex + jx, gy = ey + jy;
+    // 위협 오라 (대시 중엔 붉게, 그로기는 흙색, 평소엔 옅은 분홍)
+    const auraColor = isDash ? '255,82,82' : isGroggy ? '141,110,99' : '255,138,128';
     const pulse = 0.75 + Math.sin(gameTime * 6) * 0.25;
     ctx.beginPath();
-    ctx.arc(ex, ey, size * 0.55 * pulse, 0, Math.PI * 2);
+    ctx.arc(gx, gy, size * 0.55 * pulse, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${auraColor},0.2)`;
     ctx.fill();
     ctx.strokeStyle = `rgba(${auraColor},0.5)`;
@@ -3165,7 +3234,8 @@ function render() {
     ctx.stroke();
 
     ctx.save();
-    ctx.translate(ex, ey);
+    ctx.globalAlpha = isGroggy ? 0.65 : 1;
+    ctx.translate(gx, gy);
     // 이동 방향에 맞는 실제 뷰(측면/정면/후면) 선택 — 좌우 이동은 측면뷰를 좌우 반전해서 사용
     const vx = e.viewDirX || 0, vy = e.viewDirY || 0;
     let curImg, curRatio, flip;
@@ -3194,14 +3264,19 @@ function render() {
       ctx.font = `${Math.round(size * 0.4)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('💢', ex, ey - size * 0.6);
+      ctx.fillText('💢', gx, gy - size * 0.6);
+    } else if (isGroggy) {
+      ctx.font = `${Math.round(size * 0.4)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💫', gx, gy - size * 0.6);
     }
 
-    const barW = 30, barY = ey - size / 2 - 10;
+    const barW = 30, barY = gy - size / 2 - 10;
     ctx.fillStyle = '#000';
-    ctx.fillRect(ex - barW / 2, barY, barW, 4);
+    ctx.fillRect(gx - barW / 2, barY, barW, 4);
     ctx.fillStyle = '#ff8a80';
-    ctx.fillRect(ex - barW / 2, barY, barW * (e.hp / e.maxHp), 4);
+    ctx.fillRect(gx - barW / 2, barY, barW * (e.hp / e.maxHp), 4);
   }
 
   function drawEnemyEntity(e) {
@@ -3242,12 +3317,24 @@ function render() {
       ctx.strokeStyle = `rgba(${auraColor},0.55)`;
       ctx.lineWidth = 2;
       ctx.stroke();
+    } else {
+      // 일반 몹 접지 그림자 (원 하나만 채우는 아주 가벼운 연산이라 다수 개체에도 부담 없음)
+      ctx.beginPath();
+      ctx.ellipse(ex, ey + eh * 0.32, e.r * 0.75, e.r * 0.32, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fill();
     }
 
     if (curImg.complete && curImg.naturalWidth) {
       ctx.save();
       ctx.translate(ex, ey);
       ctx.scale(e.facing || 1, 1);
+      if (!e.isElite) {
+        // 일반 몹(백제자객)이 화려해진 배경에 묻혀 안 보이는 문제 완화 - 외곽 글로우 추가
+        // 배경이 어두운 편이라 검은 글로우는 대비가 약해서 밝은 글로우로 변경했었는데, 너무 과했어서 완화
+        ctx.shadowColor = 'rgba(255,255,255,0.4)';
+        ctx.shadowBlur = 5;
+      }
       ctx.drawImage(curImg, -ew / 2, -eh / 2 + eh * 0.08, ew, eh);
       ctx.restore();
     } else {
@@ -3342,9 +3429,9 @@ function render() {
       if (player.invuln > 0 && Math.floor(gameTime * 20) % 2 === 0) {
         ctx.globalAlpha = 0.4;
       }
-      // 배경이 화려해도 플레이어 캐릭터가 확실히 도드라지도록 외곽 글로우 추가
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 12;
+      // 배경이 화려해도 플레이어 캐릭터가 확실히 도드라지도록 외곽 글로우 추가 (일반 몹과 동일한 밝은 글로우로 통일)
+      ctx.shadowColor = 'rgba(255,255,255,0.4)';
+      ctx.shadowBlur = 5;
       ctx.translate(px, py);
       ctx.scale(player.facing || 1, 1);
       ctx.drawImage(curImg, -pw / 2, -ph / 2 + ph * 0.06, pw, ph);
