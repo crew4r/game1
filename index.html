@@ -28,6 +28,19 @@
   }
   #hpBarWrap { width: 220px; height: 20px; }
   #xpBarWrap { width: 100%; margin-top: 6px; height: 10px; }
+  #skillHud {
+    margin-top: 6px; width: 100%;
+    display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; pointer-events: none;
+  }
+  #skillHud.mobileSkillHud { flex-direction: column; align-items: flex-start; }
+  #skillHud .shChip {
+    display: flex; align-items: center; gap: 3px;
+    background: rgba(18,18,26,0.4); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px; padding: 2px 8px 2px 6px;
+    font-size: 11px; color: #eee; backdrop-filter: blur(4px);
+  }
+  #skillHud .shChip .shIcon { font-size: 12px; }
+  #skillHud .shChip.shPassive { color: #ffd54f; }
   #hpBar, #xpBar {
     position: relative; height: 100%; border-radius: 999px;
     transition: width .25s ease-out;
@@ -449,6 +462,7 @@
 </div>
 <div style="position:fixed; top:36px; left:10px; width:calc(100% - 20px);">
   <div id="xpBarWrap"><div id="xpBar"></div></div>
+  <div id="skillHud"></div>
 </div>
 
 <div id="bottomBar">WASD / 방향키로 이동 — 공격은 자동입니다</div>
@@ -1167,6 +1181,7 @@ function initGame() {
     luck: 1,
     specialInvulnTimer: 0,
     wasLowHp: false,
+    passiveCounts: {}, // HUD에 보유 패시브 개수 표시용 (키별 획득 횟수)
   };
   enemies = [];
   bullets = [];
@@ -1215,6 +1230,7 @@ function initGame() {
   weapons = [
     { ...WEAPON_POOL[0], level: 1, timer: 0, angle: 0 }
   ];
+  updateSkillHud();
   running = true;
   lastTs = performance.now();
   document.getElementById('startModal').style.display = 'none';
@@ -2587,7 +2603,12 @@ function openLevelUp() {
     } else if (opt.type === 'new') {
       icon = opt.base.icon; name = opt.base.name + ' (신규)'; desc = opt.base.desc;
     } else if (opt.type === 'special' && opt.key === 'firebreath') {
-      icon = '💥'; name = '불뿜기 진화'; desc = '우이에 관통 효과 부여 (몹 하나를 뚫고 다음 몹까지 명중)';
+      const wooieCur = weapons.find(w => w.key === 'wooie');
+      const alreadyEvolved = wooieCur && wooieCur.evolved;
+      icon = '💥'; name = '불뿜기 진화';
+      desc = alreadyEvolved
+        ? '스플래시 데미지 강화'
+        : '우이에 관통 효과 부여 (몹 하나를 뚫고 다음 몹까지 명중) + 스플래시 데미지';
     } else {
       icon = opt.base.icon; name = opt.base.name; desc = opt.base.desc;
     }
@@ -2703,6 +2724,7 @@ function applyChoice(opt, ignoreCap) {
   } else if (opt.type === 'passive') {
     // 물개 컴패니언으로 얻을 때(ignoreCap)는 최종 상한을 무시하고 계속 성장시킴 (희귀한 만남에 대한 특별 보상)
     const cap = (val) => ignoreCap ? Infinity : val;
+    player.passiveCounts[opt.base.key] = (player.passiveCounts[opt.base.key] || 0) + 1;
     switch (opt.base.key) {
       case 'speed': player.speed = Math.min(cap(220 * 1.8), player.speed * 1.10); break;
       case 'maxhp': player.maxHp += 40; player.hp += 40; break;
@@ -2725,6 +2747,27 @@ function applyChoice(opt, ignoreCap) {
       wooie.evolveStacks = Math.min(5, (wooie.evolveStacks || 0) + 1);
     }
   }
+  updateSkillHud();
+}
+
+// 경험치 바 아래에 현재 보유 무기(레벨)/패시브(획득 횟수)를 한눈에 보여줌
+function updateSkillHud() {
+  const hud = document.getElementById('skillHud');
+  if (!hud) return;
+  hud.classList.toggle('mobileSkillHud', isMobileLayout);
+  let html = '';
+  for (const w of weapons) {
+    html += `<div class="shChip"><span class="shIcon">${w.icon}</span>Lv.${w.level}</div>`;
+    if (w.key === 'wooie' && w.evolved) {
+      // 불뿜기 진화 스택은 무기 레벨이랑 별개로 오르는 값이라 따로 표시 안 하면 카운팅이 안 되는 것처럼 보임
+      html += `<div class="shChip shPassive"><span class="shIcon">💥</span>x${w.evolveStacks || 1}</div>`;
+    }
+  }
+  for (const pp of PASSIVE_POOL) {
+    const n = player.passiveCounts[pp.key];
+    if (n) html += `<div class="shChip shPassive"><span class="shIcon">${pp.icon}</span>x${n}</div>`;
+  }
+  hud.innerHTML = html;
 }
 
 function closeLevelUp() {
