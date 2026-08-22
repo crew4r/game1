@@ -226,7 +226,7 @@
   }
   #freeboardError { color: #ff6b6b; font-size: 12px; min-height: 14px; text-align: left; }
   #freeboardDetailWrap {
-    width: 96%; max-width: 810px; max-height: 380px; overflow-y: auto;
+    width: 92%; max-width: 480px; max-height: 380px; overflow-y: auto;
     background: #16202e; border-radius: 8px; border: 1px solid #2c4a68;
     padding: 16px; box-sizing: border-box; text-align: left;
     margin: 0 auto;
@@ -234,14 +234,17 @@
   #freeboardDetailTitle { color: #ffd54f; font-size: 16px; font-weight: bold; margin-bottom: 4px; word-break: break-word; }
   #freeboardDetailMeta { color: #7ea6c9; font-size: 11px; margin-bottom: 12px; }
   #freeboardDetailContent { color: #eee; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-  #freeboardDetailActions { display: flex; gap: 8px; margin-top: 12px; }
+  #freeboardDetailActions {
+    display: flex; gap: 8px; margin: 12px auto 0;
+    width: 92%; max-width: 480px; box-sizing: border-box;
+  }
   #freeboardEditBtn, #freeboardDeleteBtn {
-    padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
+    flex: 1; padding: 8px 0; font-size: 13px; border-radius: 6px; cursor: pointer;
     background: transparent; border: 1px solid #666; color: #ccc;
   }
   #freeboardDeleteBtn { border-color: #7a3a3a; color: #ff8a80; }
   #freeboardDetailBackBtn {
-    margin-top: 14px; padding: 6px 18px; font-size: 13px;
+    display: block; margin: 14px auto 0; padding: 6px 18px; font-size: 13px;
     background: transparent; border: 1px solid #666; color: #ccc;
     border-radius: 6px; cursor: pointer;
   }
@@ -472,7 +475,7 @@
     </div>
     <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
     <ol id="allTimeList"></ol>
-    <h4>📅 이번 주 랭킹 (매주 초기화)</h4>
+    <h4>📅 이번 주 TOP 20 (매주 초기화)</h4>
     <ol id="leaderboardList"></ol>
     <button id="playAgainBtn">다시 시작</button>
   </div>
@@ -499,7 +502,7 @@
   </div>
   <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
   <ol id="startAllTimeList"></ol>
-  <h4>📅 이번 주 랭킹 (매주 초기화)</h4>
+  <h4>📅 이번 주 TOP 20 (매주 초기화)</h4>
   <ol id="startLeaderboardList"></ol>
   <button id="closeLeaderboardBtn">닫기</button>
 </div>
@@ -2139,16 +2142,17 @@ function update(dt) {
         playHitSound();
 
         if (b.splash) {
-          // 불뿜기 진화: 명중 지점 주변 몹에게도 스플래시 데미지 (반경은 무기 레벨에 비례해 성장)
+          // 불뿜기 진화: 명중 지점 주변 몹에게도 스플래시 데미지 (반경은 무기 레벨에, 데미지는 진화 스택에 비례)
           const SPLASH_RADIUS = b.splashRadius || 55;
+          const splashDmg = b.dmg * (b.splashDmgMult || 1);
           const splashNearby = queryEnemiesNear(e.x, e.y, SPLASH_RADIUS);
           for (const se of splashNearby) {
             if (se === e || b.hitSet.has(se)) continue;
             if (dist(e, se) < SPLASH_RADIUS) {
-              se.hp -= b.dmg;
+              se.hp -= splashDmg;
               b.hitSet.add(se);
               spawnParticles(se.x, se.y, '#ff9800', 3);
-              spawnDamageNumber(se.x, se.y, b.dmg, se.isElite ? 'elite' : 'normal');
+              spawnDamageNumber(se.x, se.y, splashDmg, se.isElite ? 'elite' : 'normal');
             }
           }
           spawnParticles(e.x, e.y, '#ff3d00', 6);
@@ -2310,7 +2314,8 @@ function fireWeapon(w) {
         dmg, life: 2, pierce: w.pierce, hitSet: new Set(),
         color: w.bulletColor || '#ff7043', icon: w.icon || '🔥',
         splash: !!w.evolved, // 불뿜기 진화: 명중 시 주변에도 스플래시 데미지
-        splashRadius: w.evolved ? 55 + w.level * 3 : 0 // 후반 몹 밀도 증가를 못 따라가던 문제 - 레벨에 비례해 반경 성장
+        splashRadius: w.evolved ? 55 + w.level * 3 : 0, // 후반 몹 밀도 증가를 못 따라가던 문제 - 레벨에 비례해 반경 성장
+        splashDmgMult: w.evolved ? 1 + ((w.evolveStacks || 1) - 1) * 0.25 : 1 // 스택당 스플래시 데미지 +25% (최대 5스택 = 200%)
       });
     }
 
@@ -2534,8 +2539,8 @@ function openLevelUp() {
   for (const pp of PASSIVE_POOL) {
     if (!isPassiveMaxed(pp.key)) options.push({ type: 'passive', base: pp });
   }
-  // 불뿜기 진화 (별도 카드, 효과는 우이에 적용 - 우이를 보유 중이고 아직 진화 전일 때만 등장)
-  const wooieForEvolve = weapons.find(w => w.key === 'wooie' && !w.evolved);
+  // 불뿜기 진화 (별도 카드, 효과는 우이에 적용 - 우이를 보유 중이고 스택이 최대(5) 미만일 때 등장)
+  const wooieForEvolve = weapons.find(w => w.key === 'wooie' && (w.evolveStacks || 0) < 5);
   if (wooieForEvolve) {
     options.push({ type: 'special', key: 'firebreath' });
   }
@@ -2623,7 +2628,7 @@ function applyAnimalSkill(key) {
       for (const w of weapons) if (w.level < 5) pool.push({ type: 'upgrade', weapon: w });
       for (const wp of WEAPON_POOL) if (!weapons.find(w => w.key === wp.key) && weapons.length < 6) pool.push({ type: 'new', base: wp });
       for (const pp of PASSIVE_POOL) pool.push({ type: 'passive', base: pp }); // 물개는 패시브 상한 무시(희귀한 만남에 대한 특별 보상)
-      const wooieForEvolveSeal = weapons.find(w => w.key === 'wooie' && !w.evolved);
+      const wooieForEvolveSeal = weapons.find(w => w.key === 'wooie' && (w.evolveStacks || 0) < 5);
       if (wooieForEvolveSeal) pool.push({ type: 'special', key: 'firebreath' });
       if (!pool.length) break;
       const opt = choice(pool);
@@ -2706,12 +2711,14 @@ function applyChoice(opt, ignoreCap) {
   } else if (opt.type === 'special' && opt.key === 'firebreath') {
     // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (스플래시 데미지 부여, 이모지는 기존 그대로 유지)
     // 관통력은 기본값 상향(1->2)으로 이미 기존 진화 상한(2)에 도달해있으니, 여기서 더 올리지 않고 그 값을 보장만 함
+    // 추가로 먹을 때마다 스택 누적(최대 5) - 범위/연쇄가 아니라 스플래시 데미지 배율만 올려서 물량전에서 폭주하지 않게 함
     const wooie = weapons.find(w => w.key === 'wooie');
     if (wooie) {
       wooie.pierce = Math.max(wooie.pierce || 1, 2);
       wooie.name = '불뿜기 진화';
       wooie.bulletColor = '#ff3d00';
       wooie.evolved = true;
+      wooie.evolveStacks = Math.min(5, (wooie.evolveStacks || 0) + 1);
     }
   }
 }
