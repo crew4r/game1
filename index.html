@@ -197,7 +197,7 @@
   #freeboardListWrap {
     width: 92%; max-width: 480px; max-height: 260px; overflow-y: auto;
     background: #16202e; border-radius: 8px; border: 1px solid #2c4a68;
-    margin: 0 auto; box-sizing: border-box;
+    margin: 14px auto 0; box-sizing: border-box;
   }
   #freeboardList { list-style: none; padding: 0; margin: 0; text-align: left; }
   #freeboardList li {
@@ -211,7 +211,7 @@
   }
   #freeboardList .fbNick { color: #7ea6c9; font-size: 11px; margin-top: 3px; }
   #freeboardForm {
-    width: 92%; max-width: 480px; margin: 14px auto 0; padding: 12px;
+    width: 92%; max-width: 480px; margin: 0 auto; padding: 12px;
     background: #241a1a; border: 1px solid #4a2c2c; border-radius: 8px;
     box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
   }
@@ -526,9 +526,6 @@
   <h2>📝 자유게시판</h2>
 
   <div id="freeboardListView">
-    <div id="freeboardListWrap">
-      <ul id="freeboardList"></ul>
-    </div>
     <div id="freeboardForm">
       <input id="freeboardNickInput" maxlength="10" placeholder="닉네임 (선택)" />
       <input id="freeboardTitleInput" maxlength="40" placeholder="제목" />
@@ -537,6 +534,9 @@
       <input id="freeboardAdminCodeInput" maxlength="30" placeholder="운영자 코드 (해당자만 입력)" />
       <div id="freeboardError"></div>
       <button id="freeboardSubmitBtn">등록</button>
+    </div>
+    <div id="freeboardListWrap">
+      <ul id="freeboardList"></ul>
     </div>
   </div>
 
