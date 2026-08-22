@@ -163,7 +163,7 @@
   }
   #startLeaderboardList {
     list-style: none; padding: 0; margin: 0; width: 90%; max-width: 340px;
-    max-height: 320px; overflow-y: auto;
+    max-height: 260px; overflow-y: auto;
     background: #1a1a26; border-radius: 8px; border: 1px solid #333;
   }
   #startLeaderboardList li {
@@ -171,6 +171,18 @@
     font-size: 13px; border-bottom: 1px solid #262636; color: #eee;
   }
   #startLeaderboardList .rank { width: 28px; color: #999; }
+  #startAllTimeList {
+    list-style: none; padding: 0; margin: 0; width: 90%; max-width: 340px;
+    background: #1a1a26; border-radius: 8px; border: 1px solid #4a3c1a;
+  }
+  #startAllTimeList li {
+    display: flex; justify-content: space-between; padding: 6px 12px;
+    font-size: 13px; border-bottom: 1px solid #262636; color: #eee;
+  }
+  #startAllTimeList .rank { width: 28px; color: #999; }
+  #startAllTimeList li:nth-child(1) .rank { color: #ffd54f; }
+  #startAllTimeList li:nth-child(2) .rank { color: #cfd8dc; }
+  #startAllTimeList li:nth-child(3) .rank { color: #d7a86e; }
   .lbTabs { display: flex; gap: 6px; width: 90%; max-width: 340px; margin: 0 auto 8px; }
   .lbTabBtn {
     flex: 1; padding: 6px 0; font-size: 13px; font-weight: bold;
@@ -368,17 +380,24 @@
   #ytPlayerWrap.yt-active { background: transparent; }
   #ytPlayerWrap.yt-active::before { content: none; }
   #leaderboardWrap h3 { color: #ffd54f; text-align: center; margin-bottom: 8px; }
-  #leaderboardList {
+  #leaderboardWrap h4, #startLeaderboardModal h4 {
+    color: #ffd54f; text-align: center; margin: 14px 0 6px; font-size: 13px;
+  }
+  #leaderboardList, #allTimeList {
     list-style: none; padding: 0; margin: 0;
     max-height: 260px; overflow-y: auto;
     background: #1a1a26; border-radius: 8px; border: 1px solid #333;
   }
-  #leaderboardList li {
+  #allTimeList { max-height: none; border-color: #4a3c1a; }
+  #leaderboardList li, #allTimeList li {
     display: flex; justify-content: space-between; padding: 6px 12px;
     font-size: 13px; border-bottom: 1px solid #262636;
   }
   #leaderboardList li.me { background: rgba(255,213,79,0.15); color: #ffd54f; font-weight: bold; }
-  #leaderboardList .rank { width: 28px; color: #999; }
+  #leaderboardList .rank, #allTimeList .rank { width: 28px; color: #999; }
+  #allTimeList li:nth-child(1) .rank { color: #ffd54f; }
+  #allTimeList li:nth-child(2) .rank { color: #cfd8dc; }
+  #allTimeList li:nth-child(3) .rank { color: #d7a86e; }
   #nicknameEntry { display: flex; flex-direction: column; align-items: center; margin-top: 14px; }
   #nicknameInput {
     padding: 8px 12px; font-size: 14px; border-radius: 6px; border: 1px solid #555;
@@ -444,11 +463,14 @@
     <button id="submitScoreBtn">리더보드 등록</button>
   </div>
   <div id="leaderboardWrap">
-    <h3>🏆 리더보드 TOP 20</h3>
+    <h3>🏆 리더보드</h3>
     <div class="lbTabs">
       <button class="lbTabBtn" data-platform="pc">PC</button>
       <button class="lbTabBtn" data-platform="mobile">모바일</button>
     </div>
+    <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
+    <ol id="allTimeList"></ol>
+    <h4>📅 이번 주 랭킹 (매주 초기화)</h4>
     <ol id="leaderboardList"></ol>
     <button id="playAgainBtn">다시 시작</button>
   </div>
@@ -468,11 +490,14 @@
 </div>
 
 <div id="startLeaderboardModal">
-  <h2>🏆 리더보드 TOP 20</h2>
+  <h2>🏆 리더보드</h2>
   <div class="lbTabs" id="startLbTabs">
     <button class="lbTabBtn" data-platform="pc">PC</button>
     <button class="lbTabBtn" data-platform="mobile">모바일</button>
   </div>
+  <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
+  <ol id="startAllTimeList"></ol>
+  <h4>📅 이번 주 랭킹 (매주 초기화)</h4>
   <ol id="startLeaderboardList"></ol>
   <button id="closeLeaderboardBtn">닫기</button>
 </div>
@@ -1094,7 +1119,7 @@ let levelUpChoices = [], levelUpCardEls = [], levelUpSelectedIndex = 0;
 let pendingLevelUps = 0; // 한 번에 여러 레벨 오를 때, 카드 선택을 순서대로 이어서 띄우기 위한 대기열
 
 const WEAPON_POOL = [
-  { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 8,  cd: 0.6, count: 1, pierce: 1, speed: 420 },
+  { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 8,  cd: 0.6, count: 1, pierce: 2, speed: 420 },
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 88, throwRange: 260, flightTime: 0.5 },
   { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개 + 출혈',    type: 'orbit', dmg: 4,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 3.12, bleedDps: 2, bleedDuration: 3 },
   { key: 'stopit',        name: '그만 좀 봅시다', icon: '✋', desc: '근접 적 밀치기 + 피해',       type: 'aoe',   dmg: 3,  cd: 0.4, range: 60, knockback: true },
@@ -2103,8 +2128,8 @@ function update(dt) {
         playHitSound();
 
         if (b.splash) {
-          // 불뿜기 진화: 명중 지점 주변 몹에게도 스플래시 데미지
-          const SPLASH_RADIUS = 55;
+          // 불뿜기 진화: 명중 지점 주변 몹에게도 스플래시 데미지 (반경은 무기 레벨에 비례해 성장)
+          const SPLASH_RADIUS = b.splashRadius || 55;
           const splashNearby = queryEnemiesNear(e.x, e.y, SPLASH_RADIUS);
           for (const se of splashNearby) {
             if (se === e || b.hitSet.has(se)) continue;
@@ -2273,7 +2298,8 @@ function fireWeapon(w) {
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
         dmg, life: 2, pierce: w.pierce, hitSet: new Set(),
         color: w.bulletColor || '#ff7043', icon: w.icon || '🔥',
-        splash: !!w.evolved // 불뿜기 진화: 명중 시 주변에도 스플래시 데미지
+        splash: !!w.evolved, // 불뿜기 진화: 명중 시 주변에도 스플래시 데미지
+        splashRadius: w.evolved ? 55 + w.level * 3 : 0 // 후반 몹 밀도 증가를 못 따라가던 문제 - 레벨에 비례해 반경 성장
       });
     }
 
@@ -2632,6 +2658,10 @@ function applyChoice(opt, ignoreCap) {
       if (w.count < 3) {
         w.count++;
         w.dmg = Math.round(w.dmg * 1.15 * 10) / 10;
+      } else if (w.cd <= 0.1 + 1e-9) {
+        // 쿨다운이 하한(0.1초)에 도달한 뒤로는 쿨감 카드가 아무 효과 없이 낭비되던 문제 -
+        // 하한 도달 후엔 무조건 데미지 쪽으로만 강화하되, 우이 몰빵 극단 빌드가 폭주하지 않도록 배율은 낮게(1.4->1.2)
+        w.dmg = Math.round(w.dmg * 1.2 * 10) / 10;
       } else {
         w.wooieToggle = !w.wooieToggle;
         if (w.wooieToggle) {
@@ -2663,10 +2693,11 @@ function applyChoice(opt, ignoreCap) {
       case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
     }
   } else if (opt.type === 'special' && opt.key === 'firebreath') {
-    // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (관통 효과 부여, 이모지는 기존 그대로 유지)
+    // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (스플래시 데미지 부여, 이모지는 기존 그대로 유지)
+    // 관통력은 기본값 상향(1->2)으로 이미 기존 진화 상한(2)에 도달해있으니, 여기서 더 올리지 않고 그 값을 보장만 함
     const wooie = weapons.find(w => w.key === 'wooie');
     if (wooie) {
-      wooie.pierce = (wooie.pierce || 1) + 1;
+      wooie.pierce = Math.max(wooie.pierce || 1, 2);
       wooie.name = '불뿜기 진화';
       wooie.bulletColor = '#ff3d00';
       wooie.evolved = true;
@@ -3523,14 +3554,14 @@ function leaderboardCollectionFor(platform) {
 async function renderLeaderboard(highlightEntry, targetId, platform) {
   const listEl = document.getElementById(targetId || 'leaderboardList');
   listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
-  if (!window.fbLoadTop20) {
+  if (!window.fbLoadWeeklyTop) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadTop20(leaderboardCollectionFor(platform));
+  const list = await window.fbLoadWeeklyTop(leaderboardCollectionFor(platform), 20);
   listEl.innerHTML = '';
   if (!list.length) {
-    listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
+    listEl.innerHTML = '<li style="justify-content:center; color:#666;">이번 주 기록이 아직 없어요</li>';
     return;
   }
   list.forEach((entry, i) => {
@@ -3542,6 +3573,35 @@ async function renderLeaderboard(highlightEntry, targetId, platform) {
     li.innerHTML = `<span class="rank">${i + 1}위</span><span class="lname">${entry.name}</span><span class="lscore">${entry.score}</span>`;
     listEl.appendChild(li);
   });
+}
+
+// 명예의 전당 TOP 3 (역대 최고 기록, 초기화 없이 영구 유지)
+async function renderAllTimeLeaderboard(targetId, platform) {
+  const listEl = document.getElementById(targetId);
+  if (!listEl) return;
+  listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
+  if (!window.fbLoadAllTimeTop) {
+    listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
+    return;
+  }
+  const list = await window.fbLoadAllTimeTop(leaderboardCollectionFor(platform), 3);
+  listEl.innerHTML = '';
+  if (!list.length) {
+    listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
+    return;
+  }
+  const medals = ['🥇', '🥈', '🥉'];
+  list.forEach((entry, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="rank">${medals[i] || (i + 1) + '위'}</span><span class="lname">${entry.name}</span><span class="lscore">${entry.score}</span>`;
+    listEl.appendChild(li);
+  });
+}
+
+// 주간 랭킹 + 명예의 전당을 한 번에 갱신
+function refreshLeaderboards(highlightEntry, weeklyTargetId, allTimeTargetId, platform) {
+  renderLeaderboard(highlightEntry, weeklyTargetId, platform);
+  renderAllTimeLeaderboard(allTimeTargetId, platform);
 }
 
 function setActiveLbTab(tabsContainer, platform) {
@@ -3556,7 +3616,7 @@ setActiveLbTab(leaderboardWrapTabs, isMobileLayout ? 'mobile' : 'pc');
 leaderboardWrapTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
   btn.onclick = () => {
     setActiveLbTab(leaderboardWrapTabs, btn.dataset.platform);
-    renderLeaderboard(null, 'leaderboardList', btn.dataset.platform);
+    refreshLeaderboards(null, 'leaderboardList', 'allTimeList', btn.dataset.platform);
   };
 });
 
@@ -3566,7 +3626,7 @@ setActiveLbTab(startLbTabs, isMobileLayout ? 'mobile' : 'pc');
 startLbTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
   btn.onclick = () => {
     setActiveLbTab(startLbTabs, btn.dataset.platform);
-    renderLeaderboard(null, 'startLeaderboardList', btn.dataset.platform);
+    refreshLeaderboards(null, 'startLeaderboardList', 'startAllTimeList', btn.dataset.platform);
   };
 });
 
@@ -3614,6 +3674,7 @@ async function submitScore() {
     return;
   }
   await renderLeaderboard(entry, 'leaderboardList', myPlatform);
+  renderAllTimeLeaderboard('allTimeList', myPlatform);
 }
 document.getElementById('submitScoreBtn').onclick = submitScore;
 document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
@@ -3627,6 +3688,7 @@ document.getElementById('viewLeaderboardBtn').onclick = () => {
   const defaultPlatform = isMobileLayout ? 'mobile' : 'pc';
   setActiveLbTab(startLbTabs, defaultPlatform);
   renderLeaderboard(null, 'startLeaderboardList', defaultPlatform);
+  renderAllTimeLeaderboard('startAllTimeList', defaultPlatform);
 };
 document.getElementById('closeLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'none';
@@ -4024,7 +4086,7 @@ window.addEventListener('load', () => {
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp,
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit, where, serverTimestamp,
     doc, updateDoc, setDoc, getDoc, increment
   } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
   import {
@@ -4048,6 +4110,16 @@ window.addEventListener('load', () => {
   let rtdb = null;
   try { rtdb = getDatabase(app); } catch (e) { console.warn('Realtime Database 연결 실패(설정 필요):', e); }
 
+  // 주간 랭킹용 ISO 주차 키 계산 (예: "2026-W35") - 매주 월요일 기준으로 자동 전환됨
+  function getWeekKey(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (date.getUTCDay() + 6) % 7; // 월=0 ... 일=6
+    date.setUTCDate(date.getUTCDate() - dayNum + 3); // 그 주의 목요일로 이동 (ISO 주차 규칙)
+    const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+    const weekNum = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+    return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+  }
+
   window.fbSubmitScore = async function (entry, collectionName) {
     try {
       await addDoc(collection(db, collectionName || "leaderboard"), {
@@ -4056,6 +4128,7 @@ window.addEventListener('load', () => {
         level: entry.level,
         kills: entry.kills,
         time: entry.time,
+        week: getWeekKey(new Date()), // 주간 랭킹 필터링용 (올타임 랭킹 조회 시엔 무시됨)
         createdAt: serverTimestamp()
       });
       return true;
@@ -4074,6 +4147,39 @@ window.addEventListener('load', () => {
       return list;
     } catch (e) {
       console.error("리더보드 조회 실패:", e);
+      return [];
+    }
+  };
+
+  // 올타임 TOP N (초기화 없이 역대 전체 기록 기준) - 명예의 전당용, 기본 3명
+  window.fbLoadAllTimeTop = async function (collectionName, topN) {
+    try {
+      const q = query(collection(db, collectionName || "leaderboard"), orderBy("score", "desc"), limit(topN || 3));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      return list;
+    } catch (e) {
+      console.error("올타임 리더보드 조회 실패:", e);
+      return [];
+    }
+  };
+
+  // 이번 주 랭킹 (week 필드로 필터링 - 주가 바뀌면 자동으로 지난주 기록은 안 보임, 별도 삭제/초기화 작업 불필요)
+  window.fbLoadWeeklyTop = async function (collectionName, topN) {
+    try {
+      const q = query(
+        collection(db, collectionName || "leaderboard"),
+        where("week", "==", getWeekKey(new Date())),
+        orderBy("score", "desc"),
+        limit(topN || 20)
+      );
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push(d.data()));
+      return list;
+    } catch (e) {
+      console.error("주간 리더보드 조회 실패:", e);
       return [];
     }
   };
