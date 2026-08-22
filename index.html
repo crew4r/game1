@@ -1833,11 +1833,13 @@ function update(dt) {
     const graceProgress = 1 - (postBossGraceTimer / POST_BOSS_GRACE_DURATION);
 
     spawnTimer -= dt;
-    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+    const MOBILE_SPAWN_INTERVAL_MULT = 1.15; // 모바일은 스폰 간격을 15% 더 여유롭게
+    const MOBILE_BURST_MULT = 0.85;          // 모바일은 버스트량도 15% 낮게
+    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
     const spawnInterval = spawnIntervalBase * (1 + (1 - graceProgress) * 1.2); // 유예 시작 시 간격 최대 2.2배로 완화
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
-      const burstBase = Math.min(11, 1 + Math.floor(growthTime / 55)); // 버스트 상한 상향(8->11)으로 후반 압박 강화
+      const burstBase = Math.min(11, 1 + Math.floor(growthTime / 55)) * (isMobileLayout ? MOBILE_BURST_MULT : 1); // 버스트 상한 상향(8->11)으로 후반 압박 강화
       const burst = Math.max(1, Math.round(burstBase * (0.35 + 0.65 * graceProgress))); // 유예 시작 시 버스트도 35%까지 완화
       for (let i = 0; i < burst; i++) {
         if (enemies.length >= MAX_ENEMIES) {
@@ -3790,6 +3792,7 @@ const NOTICE_CONTENT = {
       { text: '🌲 등장 캐릭터들의 이미지 전면 재조정' },
       { text: '🕹️ 모바일 가상 조이스틱 판정 반경/크기 확대, 데드존 추가로 조작감 개선' },
       { text: '🔍 모바일 화면 줌 소폭 확대 (0.55 → 0.65)' },
+      { text: '📱 모바일 플레이 시 스폰간격 및 몹 수 감소(-15%)' },
     ],
   },
 };
