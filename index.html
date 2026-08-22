@@ -1130,7 +1130,7 @@ let levelUpChoices = [], levelUpCardEls = [], levelUpSelectedIndex = 0;
 let pendingLevelUps = 0; // 한 번에 여러 레벨 오를 때, 카드 선택을 순서대로 이어서 띄우기 위한 대기열
 
 const WEAPON_POOL = [
-  { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 8,  cd: 0.6, count: 1, pierce: 2, speed: 420 },
+  { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 8,  cd: 0.6, count: 1, pierce: 1, speed: 420 },
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 88, throwRange: 260, flightTime: 0.5 },
   { key: 'lisenne',       name: '리센느아세요?',  icon: '💿', desc: '주위를 도는 CD, 최대 5개 + 출혈',    type: 'orbit', dmg: 4,  cd: 0.25, hitRadius: 22, orbitRadius: 70, angularSpeed: 3.12, bleedDps: 2, bleedDuration: 3 },
   { key: 'stopit',        name: '그만 좀 봅시다', icon: '✋', desc: '근접 적 밀치기 + 피해',       type: 'aoe',   dmg: 3,  cd: 0.4, range: 60, knockback: true },
