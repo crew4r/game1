@@ -2191,13 +2191,15 @@ function update(dt) {
         gems.push({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
         if (e.variant === 'pd') {
           endPDArena(true); // 아레나 종료 + 평가/보상 처리(내부에서 플로팅텍스트 및 보너스 카드 지급)
-          grantBonusSkillCard(); // 기본 보상은 동일하게 지급
+          for (let i = 0; i < 3; i++) grantBonusSkillCard(); // 보스 처치 기본 보상 3장 (등급 보너스는 별도 추가)
+        } else if (e.variant === 'miniCar') {
+          // 작은 차(몰이꾼)는 큰 차의 서브 개체라 보스 처치 보상 대상에서 제외
         } else {
           floatingTexts.push({
-            x: e.x, y: e.y - 20, text: '엘리트 처치! 스킬 카드 확정 획득',
+            x: e.x, y: e.y - 20, text: '보스 처치! 스킬 카드 3장 획득',
             life: 2, maxLife: 2, size: 14, color: '#b26fe0',
           });
-          grantBonusSkillCard();
+          for (let i = 0; i < 3; i++) grantBonusSkillCard();
         }
       } else {
         spawnParticles(e.x, e.y, e.color, 10);
