@@ -1043,6 +1043,14 @@ function joystickReset() {
   joystickVec.x = 0; joystickVec.y = 0;
   joystickBase.style.display = 'none';
 }
+// 모달(닉네임 입력, 리더보드, 공지사항, 게시판 등)이 열릴 때 반드시 호출 -
+// touchZone은 한 번 활성화되면 계속 화면 전체를 덮은 채로 남아있어서, 그 위의
+// input/textarea가 모바일에서 터치/키패드 입력을 못 받는 문제가 있었음
+function disableTouchZone() {
+  joystickPointerId = null;
+  joystickReset();
+  touchZone.style.display = 'none';
+}
 touchZone.addEventListener('pointerdown', (e) => {
   if (e.pointerType !== 'touch') return;
   // 게임오버/시작/레벨업/룰렛 모달이 열려있을 땐 조이스틱 비활성화
@@ -3537,6 +3545,7 @@ function computeScore() {
 let lastScore = 0;
 function endGame() {
   running = false;
+  disableTouchZone(); // 게임 종료 직후 닉네임 입력 키패드가 안 먹히던 문제 수정
   lastScore = computeScore();
   document.getElementById('finalStats').innerHTML =
     `생존 시간: ${document.getElementById('timeText').textContent}<br>` +
@@ -3687,6 +3696,7 @@ document.getElementById('playAgainBtn').onclick = initGame;
 
 // 시작 화면에서 리더보드 조회
 document.getElementById('viewLeaderboardBtn').onclick = () => {
+  disableTouchZone();
   document.getElementById('startLeaderboardModal').style.display = 'flex';
   const defaultPlatform = isMobileLayout ? 'mobile' : 'pc';
   setActiveLbTab(startLbTabs, defaultPlatform);
@@ -3803,6 +3813,7 @@ document.querySelectorAll('.noticeVersionBtn').forEach(btn => {
 document.getElementById('noticeBackBtn').onclick = showNoticeVersionList;
 
 document.getElementById('noticeBtn').onclick = () => {
+  disableTouchZone();
   document.getElementById('noticeModal').style.display = 'flex';
   showNoticeVersionList();
 };
@@ -3992,6 +4003,7 @@ document.getElementById('freeboardDetailBackBtn').onclick = showFreeboardListVie
 document.getElementById('freeboardEditBtn').onclick = handleEditPost;
 document.getElementById('freeboardDeleteBtn').onclick = handleDeletePost;
 document.getElementById('freeboardBtn').onclick = () => {
+  disableTouchZone();
   document.getElementById('freeboardModal').style.display = 'flex';
   document.getElementById('freeboardError').textContent = '';
   showFreeboardListView();
