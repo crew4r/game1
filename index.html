@@ -3736,15 +3736,7 @@ function render() {
     }
 
     if (curImg.complete && curImg.naturalWidth) {
-      if (!e.isElite && isHighDensity) {
-        // 몹이 아주 많이(HIGH_DENSITY_ENEMY_THRESHOLD 이상) 뭉쳐있을 때는 이미지를 합성하는
-        // drawImage 대신 단색 원 하나만 채워서 그린다 - 알파 합성이 들어가는 이미지 그리기보다
-        // 훨씬 가볍고, 애초에 이 정도로 겹쳐있으면 낱개 생김새도 잘 안 보여서 티가 크게 안 난다.
-        ctx.beginPath();
-        ctx.arc(ex, ey, e.r, 0, Math.PI * 2);
-        ctx.fillStyle = e.color;
-        ctx.fill();
-      } else if (!e.isElite) {
+      if (!e.isElite) {
         // 일반 몹(백제자객)이 화려해진 배경에 묻혀 안 보이는 문제 완화용 외곽 글로우.
         // 방향(위/아래 x 좌/우)별로 미리 구워둔 스프라이트를 좌표 계산만으로 그린다 -
         // ctx.save/translate/scale/restore를 매 개체마다 안 써도 되게 해서, 몹이 수백 마리
