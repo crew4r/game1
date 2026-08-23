@@ -4521,7 +4521,10 @@ async function submitFreeboardComment() {
   const btn = document.getElementById('freeboardCommentSubmitBtn');
   btn.disabled = true;
   btn.textContent = '등록 중...';
-  const ok = window.fbSubmitComment ? await window.fbSubmitComment(p.id, message.slice(0, 200)) : false;
+  // 운영자 코드 원문 대신 해시를 저장 - 게시판 read 권한이 전체 공개라, 평문을 그대로 저장하면
+  // 누구나 글을 읽어서 운영자 코드를 알아낼 수 있음(비밀번호 필드와 동일한 이유로 해시 사용)
+  const adminCodeHash = await hashPassword(code);
+  const ok = window.fbSubmitComment ? await window.fbSubmitComment(p.id, message.slice(0, 200), adminCodeHash) : false;
   btn.disabled = false;
   btn.textContent = '댓글 등록';
   if (!ok) {
@@ -5009,10 +5012,11 @@ window.addEventListener('load', () => {
   };
 
   // 게시글 댓글 (관리자만 작성 가능 - 운영자 코드 확인은 호출 전 클라이언트에서 이미 마쳤다고 가정)
-  window.fbSubmitComment = async function (postId, message) {
+  window.fbSubmitComment = async function (postId, message, adminCodeHash) {
     try {
       await addDoc(collection(db, "freeboard", postId, "comments"), {
         message,
+        adminCodeHash,
         createdAt: serverTimestamp(),
       });
       return true;
