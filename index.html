@@ -2234,6 +2234,26 @@ function update(dt) {
     }
     if (e.knockbackCd > 0) e.knockbackCd -= dt;
 
+    if (!e.isElite) {
+      // 일반 몹끼리는 완전히 같은 좌표에 쌓이지 않도록 실제로 몸이 겹친 이웃한테서만
+      // 살짝 밀려난다. "사회적 거리두기"처럼 넓게 퍼지게 하는 힘이 아니라 겹친 만큼만
+      // 아주 약하게 미는 정도라, 도망 루트나 난이도에는 거의 영향이 없다(그리드 이용해서
+      // 가까운 이웃만 조회하므로 몹 수백 마리에도 비용이 크게 늘지 않음).
+      const neighbors = queryEnemiesNear(e.x, e.y, e.r * 2.5);
+      for (const other of neighbors) {
+        if (other === e || other.isElite || other.variant === 'car' || other.variant === 'miniCar') continue;
+        const dx = e.x - other.x, dy = e.y - other.y;
+        const minDist = e.r + other.r;
+        const dd = dx * dx + dy * dy;
+        if (dd > 0 && dd < minDist * minDist) {
+          const d = Math.sqrt(dd);
+          const push = (minDist - d) * 0.25;
+          e.x += (dx / d) * push;
+          e.y += (dy / d) * push;
+        }
+      }
+    }
+
     resolveObstacleCollision(e);
     resolvePDWallCollision(e);
 
