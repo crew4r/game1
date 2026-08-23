@@ -2725,8 +2725,13 @@ function fireWeapon(w) {
 
 const MAX_PARTICLES = 260;
 function spawnParticles(x, y, color, n) {
+  // 상한 도달 시 예전엔 shift()로 오래된 걸 밀어냈는데, shift()는 배열 앞부분을 지우는
+  // 연산이라 뒤 요소들을 전부 한 칸씩 당겨야 해서 비용이 크다 - 몹 수십~백 마리가
+  // 한 프레임에 같이 맞아서 spawnParticles가 연달아 여러 번 불릴 때 이게 누적되면서
+  // 프레임이 끊기던 원인 중 하나였음. 이미 상한만큼 떠 있으면 그냥 이번 것만 무시한다
+  // (기존 파티클은 자기 수명대로 사라지고, 그러면 다시 여유가 생겨 새로 뜨기 시작함).
   for (let i = 0; i < n; i++) {
-    if (particles.length >= MAX_PARTICLES) particles.shift(); // 상한 초과 시 오래된 것부터 제거
+    if (particles.length >= MAX_PARTICLES) return;
     const a = rand(0, Math.PI * 2);
     const spd = rand(30, 120);
     particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: rand(0.2, 0.5), color });
@@ -2735,7 +2740,7 @@ function spawnParticles(x, y, color, n) {
 
 const MAX_DAMAGE_NUMBERS = 80;
 function spawnDamageNumber(x, y, amount, kind) {
-  if (damageNumbers.length >= MAX_DAMAGE_NUMBERS) damageNumbers.shift();
+  if (damageNumbers.length >= MAX_DAMAGE_NUMBERS) return; // 이유는 spawnParticles와 동일 (shift() 비용 회피)
   damageNumbers.push({
     x: x + rand(-6, 6), y: y - 10,
     text: String(Math.round(amount)),
