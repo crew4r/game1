@@ -3756,9 +3756,10 @@ function render() {
       }
     }
 
-    // hp bar (엘리트는 더 넓고 색이 다름). 일반 몹은 밀집 상황에서 생략(위 그림자와 동일한 이유) -
-    // 어차피 그 밀도에서는 낱개 체력바가 잘 보이지도 않고, 엘리트는 몇 안 되니 항상 그린다.
-    if (e.isElite || !isHighDensity) {
+    // hp bar (엘리트는 더 넓고 색이 다름). 일반 몹은 풀피면 어차피 꽉 찬 초록 막대라
+    // 정보값이 없으니 데미지를 받은 애만 그린다 - 스폰 직후 몰려있는 풀피 몹들은
+    // 애초에 그릴 필요가 없어서 그만큼 그리기 비용이 줄고, 밀집 상황에서는 그마저도 생략한다.
+    if (e.isElite || (!isHighDensity && e.hp < e.maxHp)) {
       const barW = e.isElite ? 44 : 28;
       const barY = ey - eh / 2 - (e.isElite ? 14 : 8);
       ctx.fillStyle = '#000';
