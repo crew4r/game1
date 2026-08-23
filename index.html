@@ -182,17 +182,21 @@
   .difficultyCol { position: relative; }
   .difficultyBtn {
     padding: 10px 14px; font-size: 13px; font-weight: bold;
-    background: transparent; border: 1px solid #666; color: #999;
-    border-radius: 6px; cursor: pointer; box-sizing: border-box; white-space: nowrap;
+    border: 1px solid; border-radius: 6px; cursor: pointer; box-sizing: border-box; white-space: nowrap;
   }
-  .difficultyBtn.easy.active { background: #69f0ae; color: #123024; border-color: #69f0ae; }
-  .difficultyBtn.hard.active { background: #ff5252; color: #fff; border-color: #ff5252; }
+  .difficultyBtn.easy { background: transparent; color: #69f0ae; border-color: rgba(105,240,174,0.5); }
+  .difficultyBtn.hard { background: transparent; color: #ff5252; border-color: rgba(255,82,82,0.5); }
+  .difficultyBtn.easy.active { border-color: #69f0ae; }
+  .difficultyBtn.hard.active { border-color: #ff5252; }
   .difficultyPointer {
     position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
     font-size: 15px; line-height: 1; margin-top: 8px; white-space: nowrap;
     visibility: hidden; pointer-events: none;
   }
   .difficultyPointer.active { visibility: visible; }
+  #difficultyNotice { margin-top: 16px; font-size: 12px; }
+  #difficultyNotice.easy { color: #69f0ae; }
+  #difficultyNotice.hard { color: #ff5252; }
   #viewLeaderboardBtn, #noticeBtn, #freeboardBtn {
     margin-top: 10px; padding: 8px 22px; font-size: 14px;
     background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
@@ -633,18 +637,19 @@
   </div>
   <div id="difficultyRow">
     <div class="difficultyCol">
-      <button id="easyModeBtn" class="difficultyBtn easy">EASY</button>
+      <button id="easyModeBtn" class="difficultyBtn easy">EASY🐥</button>
       <div class="difficultyPointer" id="easyPointer">👆</div>
     </div>
     <button id="startBtn">게임 시작</button>
     <div class="difficultyCol">
-      <button id="hardModeBtn" class="difficultyBtn hard active">HARD</button>
+      <button id="hardModeBtn" class="difficultyBtn hard active">HARD😈</button>
       <div class="difficultyPointer active" id="hardPointer">👆</div>
     </div>
   </div>
   <button id="viewLeaderboardBtn">🏆 리더보드 보기</button>
   <button id="noticeBtn">⚙️ 공지사항</button>
   <button id="freeboardBtn">📝 자유게시판</button>
+  <div id="difficultyNotice" class="hard">최고 기록을 갱신해 랭킹에 도전해 보세요!</div>
 </div>
 
 <div id="startLeaderboardModal">
@@ -1673,6 +1678,11 @@ function setDifficulty(diff) {
   document.getElementById('easyPointer').classList.toggle('active', diff === 'easy');
   document.getElementById('hardModeBtn').classList.toggle('active', diff === 'hard');
   document.getElementById('hardPointer').classList.toggle('active', diff === 'hard');
+  const notice = document.getElementById('difficultyNotice');
+  notice.className = diff;
+  notice.textContent = diff === 'easy'
+    ? '리더보드에 점수가 등록되지 않습니다.'
+    : '최고 기록을 갱신해 랭킹에 도전해 보세요!';
 }
 document.getElementById('easyModeBtn').onclick = () => setDifficulty('easy');
 document.getElementById('hardModeBtn').onclick = () => setDifficulty('hard');
