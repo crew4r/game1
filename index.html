@@ -770,6 +770,66 @@ function queryEnemiesNear(x, y, radius) {
   }
   return result;
 }
+// ---------- 경험치 구슬 공간 분할 ----------
+// enemyGrid와 달리 매 프레임 통째로 다시 짓지 않고, 생성/이동/제거 시점마다 그때그때
+// 갱신되는 상시 격자다. 젬은 (플레이어 취향 존중상) 아무리 오래 회수 안 해도 삭제하지 않고
+// 계속 쌓이기 때문에, 매 프레임 O(전체 젬 수)로 훑으면 매치가 길어질수록 프레임 비용이
+// 끝없이 늘어난다 - 그래서 자석/충돌 판정은 플레이어 주변만, 렌더링은 화면 안만 조회하도록
+// 젬 개수와 무관하게 비용이 고정되게 만든다.
+const GEM_GRID_CELL = 100;
+let gemGrid = new Map();
+function gemGridKey(x, y) { return Math.floor(x / GEM_GRID_CELL) + ',' + Math.floor(y / GEM_GRID_CELL); }
+function gemGridInsert(g) {
+  g._gk = gemGridKey(g.x, g.y);
+  let arr = gemGrid.get(g._gk);
+  if (!arr) { arr = []; gemGrid.set(g._gk, arr); }
+  arr.push(g);
+}
+function gemGridRemove(g) {
+  const arr = gemGrid.get(g._gk);
+  if (!arr) return;
+  const i = arr.indexOf(g);
+  if (i !== -1) arr.splice(i, 1);
+}
+function gemGridRelocate(g) {
+  const key = gemGridKey(g.x, g.y);
+  if (key === g._gk) return;
+  gemGridRemove(g);
+  g._gk = key;
+  let arr = gemGrid.get(key);
+  if (!arr) { arr = []; gemGrid.set(key, arr); }
+  arr.push(g);
+}
+function queryGemsNear(x, y, radius) {
+  const result = [];
+  const c0x = Math.floor((x - radius) / GEM_GRID_CELL);
+  const c1x = Math.floor((x + radius) / GEM_GRID_CELL);
+  const c0y = Math.floor((y - radius) / GEM_GRID_CELL);
+  const c1y = Math.floor((y + radius) / GEM_GRID_CELL);
+  for (let cx = c0x; cx <= c1x; cx++) {
+    for (let cy = c0y; cy <= c1y; cy++) {
+      const arr = gemGrid.get(cx + ',' + cy);
+      if (arr) for (const g of arr) result.push(g);
+    }
+  }
+  return result;
+}
+// 젬 추가/제거 전용 헬퍼: gems 배열에서도 인덱스를 들고 있다가 스왑 제거해서,
+// 매 프레임 gems.filter()로 배열 전체를 새로 만드는 비용 자체를 없앤다.
+function spawnGem(g) {
+  g._idx = gems.length;
+  gems.push(g);
+  gemGridInsert(g);
+}
+function removeGem(g) {
+  gemGridRemove(g);
+  const lastIdx = gems.length - 1;
+  const last = gems[lastIdx];
+  gems[g._idx] = last;
+  last._idx = g._idx;
+  gems.pop();
+}
+
 // 가장 가까운 적 탐색: 반경을 점점 넓혀가며 격자 조회 (전체 스캔 회피)
 function findNearestEnemy(x, y) {
   const radii = [150, 300, 600, 1200, 2500];
@@ -1544,6 +1604,7 @@ function initGame() {
   enemies = [];
   bullets = [];
   gems = [];
+  gemGrid = new Map();
   particles = [];
   throws = [];
   chopstickFx = [];
@@ -2616,7 +2677,7 @@ function update(dt) {
       if (e.isElite) {
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
         spawnParticles(e.x, e.y, '#ffd54f', 14);
-        gems.push({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
+        spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
         if (e.variant === 'pd') {
           endPDArena(true); // 아레나 종료 + 평가/보상 처리(내부에서 플로팅텍스트 및 보너스 카드 지급)
           for (let i = 0; i < 3; i++) grantBonusSkillCard(); // 보스 처치 기본 보상 3장 (등급 보너스는 별도 추가)
@@ -2631,7 +2692,7 @@ function update(dt) {
         }
       } else {
         spawnParticles(e.x, e.y, e.color, 10);
-        gems.push({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 6 });
+        spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 6 });
       }
     }
   }
@@ -2648,22 +2709,24 @@ function update(dt) {
   const ENEMY_DESPAWN_DIST = 1800;
   enemies = enemies.filter(e => e.isElite || dist(e, player) < ENEMY_DESPAWN_DIST);
 
-  // 경험치 구슬 자석 + 흡수
-  for (const g of gems) {
+  // 경험치 구슬 자석 + 흡수 (젬은 삭제하지 않고 계속 쌓이므로, 전체 순회 대신
+  // 공간 분할로 플레이어 자석 범위 안에 있는 젬만 조회해서 젬 총량과 무관한 비용을 유지)
+  const nearGems = queryGemsNear(player.x, player.y, player.magnetRange);
+  for (const g of nearGems) {
     const d = dist(g, player);
     if (d < player.magnetRange) {
       const a = Math.atan2(player.y - g.y, player.x - g.x);
       const pull = 500 * dt;
       g.x += Math.cos(a) * pull;
       g.y += Math.sin(a) * pull;
+      gemGridRelocate(g);
     }
     if (d < player.r + g.r) {
       xp += g.xp;
-      g.dead = true;
+      removeGem(g);
       playGemSound();
     }
   }
-  gems = gems.filter(g => !g.dead);
 
   // 레벨업 체크
   checkLevelUp();
@@ -3068,6 +3131,7 @@ function applyAnimalSkill(key) {
     let gained = 0;
     for (const g of gems) { xp += g.xp; gained += g.xp; }
     gems = [];
+    gemGrid = new Map();
     checkLevelUp();
     return `경험치 ${gained} 획득!`;
   } else if (key === 'seal') {
@@ -3643,8 +3707,9 @@ function render() {
     }
   }
 
-  // 경험치 구슬
-  for (const g of gems) {
+  // 경험치 구슬 (젬은 삭제 없이 계속 쌓이므로, 총 젬 수와 무관하게 화면 안에 있는 것만 조회해서 그림)
+  const visibleGems = queryGemsNear(camera.x, camera.y, Math.hypot(viewHalfW, viewHalfH) + 30);
+  for (const g of visibleGems) {
     ctx.beginPath();
     ctx.arc(g.x + ox, g.y + oy, g.r, 0, Math.PI * 2);
     ctx.fillStyle = '#3cf';
