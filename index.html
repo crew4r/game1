@@ -3768,7 +3768,11 @@ function render() {
       ctx.fillRect(ex - barW / 2, barY, barW * (e.hp / e.maxHp), 5);
     }
   }
-  const isHighDensity = enemies.length > HIGH_DENSITY_ENEMY_THRESHOLD;
+  // enemies.length는 화면 밖 먼 곳의 몹까지 포함한 "전체 생존 개체수"라서, 실제로
+  // 뭉쳐있지 않아도 플레이 몇 분 지나면 상시로 이 값을 넘어버려 체력바가 계속 안 뜨는
+  // 버그가 있었다. 실제로 판단하고 싶은 건 "지금 플레이어 근처에 몰려있는지"이므로,
+  // 이미 매 프레임 갱신되는 공간 분할 그리드로 플레이어 주변만 세어서 판단한다.
+  const isHighDensity = queryEnemiesNear(player.x, player.y, 450).length > HIGH_DENSITY_ENEMY_THRESHOLD;
   for (const e of enemies) { if (!e.isElite) drawEnemyEntity(e); }
   for (const e of enemies) { if (e.isElite) drawEnemyEntity(e); }
 
