@@ -776,6 +776,29 @@ function queryEnemiesNear(x, y, radius) {
   }
   return result;
 }
+// 몹이 한 지점(주로 플레이어)으로 몰려서 그리드 셀 몇 개에 수백 마리가 뭉치면, 위
+// queryEnemiesNear는 그 뭉친 만큼을 통째로 배열에 담아 반환하느라 비용이 뛴다.
+// 개체당 이웃 몇 개만 있으면 되는 용도(몹-몹 겹침 방지 등)는 이 버전으로 수집 자체를
+// limit에서 조기 종료시켜서, 뭉쳤을 때도 비용이 개체 수에 비례해 커지지 않게 한다.
+function queryEnemiesNearLimited(x, y, radius, limit) {
+  const result = [];
+  const c0x = Math.floor((x - radius) / ENEMY_GRID_CELL);
+  const c1x = Math.floor((x + radius) / ENEMY_GRID_CELL);
+  const c0y = Math.floor((y - radius) / ENEMY_GRID_CELL);
+  const c1y = Math.floor((y + radius) / ENEMY_GRID_CELL);
+  for (let cx = c0x; cx <= c1x; cx++) {
+    for (let cy = c0y; cy <= c1y; cy++) {
+      const arr = enemyGrid.get(cx + ',' + cy);
+      if (arr) {
+        for (const e of arr) {
+          result.push(e);
+          if (result.length >= limit) return result;
+        }
+      }
+    }
+  }
+  return result;
+}
 // ---------- 경험치 구슬 공간 분할 ----------
 // enemyGrid와 달리 매 프레임 통째로 다시 짓지 않고, 생성/이동/제거 시점마다 그때그때
 // 갱신되는 상시 격자다. 젬은 (플레이어 취향 존중상) 아무리 오래 회수 안 해도 삭제하지 않고
@@ -2396,8 +2419,12 @@ function update(dt) {
       // 일반 몹끼리는 완전히 같은 좌표에 쌓이지 않도록 실제로 몸이 겹친 이웃한테서만
       // 살짝 밀려난다. "사회적 거리두기"처럼 넓게 퍼지게 하는 힘이 아니라 겹친 만큼만
       // 아주 약하게 미는 정도라, 도망 루트나 난이도에는 거의 영향이 없다(그리드 이용해서
-      // 가까운 이웃만 조회하므로 몹 수백 마리에도 비용이 크게 늘지 않음).
-      const neighbors = queryEnemiesNear(e.x, e.y, e.r * 2.5);
+      // 가까운 이웃만 조회하므로 몹이 넓게 퍼져 있을 땐 비용이 크게 늘지 않음).
+      // 다만 플레이어 한 점으로 몰려들어 한곳에 빽빽하게 뭉치면(late game 스웜) 이웃 수가
+      // 개체당 수십~수백까지 치솟아 몹 전체로는 사실상 O(n^2)가 되어 렉의 원인이 됐다 -
+      // 겹친 이웃 몇 개만 처리해도 "안 쌓이는" 시각 효과는 충분하므로 개체당 처리량을 상한.
+      const neighbors = queryEnemiesNearLimited(e.x, e.y, e.r * 2.5, 16);
+      let pushed = 0;
       for (const other of neighbors) {
         if (other === e || other.isElite || other.variant === 'car' || other.variant === 'miniCar') continue;
         const dx = e.x - other.x, dy = e.y - other.y;
@@ -2408,6 +2435,7 @@ function update(dt) {
           const push = (minDist - d) * 0.25;
           e.x += (dx / d) * push;
           e.y += (dy / d) * push;
+          if (++pushed >= 8) break;
         }
       }
     }
@@ -2676,9 +2704,17 @@ function update(dt) {
     }
   }
 
-  // 적 사망 처리
-  for (const e of enemies) {
+  // 적 사망 + 원거리 이탈 정리 (통합 스왑 제거)
+  // 예전엔 이 처리를 enemies.filter()로 두 번 따로 했는데, 그때마다 살아있는 전체 배열(최대
+  // 450마리)을 통째로 새로 복사해서 매 프레임 GC 압박(대형 스톨)의 주 원인이 됐다.
+  // 죽거나 너무 멀어진 개체만 배열 끝 원소와 맞바꿔 지우면, 실제로 제거할 게 없는 프레임엔
+  // 새 배열을 아예 만들지 않는다 (역방향 순회라 스왑 제거해도 순회 누락/중복이 없다).
+  const ENEMY_DESPAWN_DIST = 1800;
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    let remove = false;
     if (e.hp <= 0) {
+      remove = true;
       killCount++;
       if (e.isElite) {
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
@@ -2686,7 +2722,7 @@ function update(dt) {
         spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
         if (e.variant === 'pd') {
           endPDArena(true); // 아레나 종료 + 평가/보상 처리(내부에서 플로팅텍스트 및 보너스 카드 지급)
-          for (let i = 0; i < 3; i++) grantBonusSkillCard(); // 보스 처치 기본 보상 3장 (등급 보너스는 별도 추가)
+          for (let i2 = 0; i2 < 3; i2++) grantBonusSkillCard(); // 보스 처치 기본 보상 3장 (등급 보너스는 별도 추가)
         } else if (e.variant === 'miniCar') {
           // 작은 차(몰이꾼)는 큰 차의 서브 개체라 보스 처치 보상 대상에서 제외
         } else {
@@ -2694,26 +2730,28 @@ function update(dt) {
             x: e.x, y: e.y - 20, text: '보스 처치! 스킬 카드 3장 획득',
             life: 2, maxLife: 2, size: 14, color: '#b26fe0',
           });
-          for (let i = 0; i < 3; i++) grantBonusSkillCard();
+          for (let i2 = 0; i2 < 3; i2++) grantBonusSkillCard();
         }
       } else {
         spawnParticles(e.x, e.y, e.color, 10);
         spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 6 });
       }
+    } else if (!e.isElite && dist(e, player) >= ENEMY_DESPAWN_DIST) {
+      // 플레이어에게서 너무 멀리 뒤처진 적은 정리 (한쪽으로 도망갈 때, 뒤에 쌓인 적들이
+      // 동시 생존 상한을 계속 차지해서 앞쪽에 새 적이 못 나오는 문제를 방지)
+      remove = true;
+    }
+    if (remove) {
+      enemies[i] = enemies[enemies.length - 1];
+      enemies.pop();
     }
   }
-  enemies = enemies.filter(e => e.hp > 0);
   document.getElementById('killText').textContent = killCount;
 
-  // 큰 차가 사라졌으면(처치됨) 짝인 작은 차도 같이 퇴장
+  // 큰 차가 사라졌으면(처치됨) 짝인 작은 차도 같이 퇴장 (드문 이벤트라 filter 비용 무시 가능)
   if (!enemies.some(e => e.variant === 'car')) {
     enemies = enemies.filter(e => e.variant !== 'miniCar');
   }
-
-  // 플레이어에게서 너무 멀리 뒤처진 적은 정리 (한쪽으로 도망갈 때, 뒤에 쌓인 적들이
-  // 동시 생존 상한을 계속 차지해서 앞쪽에 새 적이 못 나오는 문제를 방지)
-  const ENEMY_DESPAWN_DIST = 1800;
-  enemies = enemies.filter(e => e.isElite || dist(e, player) < ENEMY_DESPAWN_DIST);
 
   // 경험치 구슬 자석 + 흡수 (젬은 삭제하지 않고 계속 쌓이므로, 전체 순회 대신
   // 공간 분할로 플레이어 자석 범위 안에 있는 젬만 조회해서 젬 총량과 무관한 비용을 유지)
