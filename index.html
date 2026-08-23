@@ -800,7 +800,11 @@ const ENEMY_BACK_IMG_RATIO = 104 / 200;
 // 일반 몹 외곽 글로우 사전 렌더링: 매 프레임 ctx.shadowBlur를 걸면 몹이 많이 겹칠 때
 // 캔버스 렌더링이 급격히 무거워지므로(화면에 보이는 개체 수만큼 블러 비용 누적),
 // 이미지당 딱 한 번만 오프스크린 캔버스에 구워두고 이후로는 그 결과물을 그대로 그린다.
-const ENEMY_GLOW_PAD = 16;
+// 글로우(shadowBlur=5) 자체는 이미 굽는 시점에 한 번만 계산해서 매 프레임 비용은 없지만,
+// 그 여백(PAD)만큼 drawImage로 그리는 사각형 자체가 커진다 - 16px 여백은 실제 몹 크기(약
+// 40x40)에 비해 과하게 넉넉해서 그릴 면적이 거의 3배가 됐었다. 5px 블러가 번지는 정도를
+// 고려하면 이 정도로 줄여도 잘림 없이 충분하다 (몹 수백 마리 겹칠 때 이 면적 차이가 누적됨).
+const ENEMY_GLOW_PAD = 8;
 const enemyGlowSpriteCache = {};
 function bakeGlowSprite(img, w, h, flip) {
   const cnv = document.createElement('canvas');
