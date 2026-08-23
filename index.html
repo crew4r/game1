@@ -202,8 +202,10 @@
   #startLeaderboardList .rank { width: 36px; flex-shrink: 0; white-space: nowrap; color: #999; }
   #startLeaderboardList .lface, #startAllTimeList .lface,
   #leaderboardList .lface, #allTimeList .lface {
-    width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
-    margin-right: 6px; object-fit: cover; background: rgba(255,255,255,0.08);
+    display: block; width: 20px; height: 20px; max-width: 20px; max-height: 20px;
+    min-width: 20px; min-height: 20px; border-radius: 50%; flex-shrink: 0;
+    margin-right: 6px; object-fit: cover; overflow: hidden;
+    background: rgba(255,255,255,0.08);
   }
   #startAllTimeList {
     list-style: none; padding: 0; margin: 0; width: 95%; max-width: 480px;
