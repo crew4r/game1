@@ -1347,12 +1347,19 @@ touchZone.addEventListener('pointercancel', joystickEnd);
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-// 개발/테스트용: 게임 진행 중 'T' 키로 피디니무 아레나 즉시 발동 (대기시간 없이 바로 테스트)
+// 개발/테스트용: 게임 진행 중 'T' 키로 플레이어 근처에 일반 몹 200마리를 한 번에 뭉쳐서
+// 스폰 (뭉침 상황 성능 테스트용 - 동시 생존 상한도 무시하고 강제로 쏟아붓는다)
 window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() !== 't') return;
-  if (!running || paused || pdArenaActive) return;
-  if (enemies.some(en => en.isElite)) return; // 다른 엘리트(꾸대표 등)가 이미 있으면 중복 방지
-  triggerPDArena();
+  if (!running || paused) return;
+  const s = enemyStatsForTime(growthTime);
+  for (let i = 0; i < 200; i++) {
+    enemies.push({
+      x: player.x + rand(-40, 40), y: player.y - 100 + rand(-40, 40),
+      hp: s.hp, maxHp: s.hp, speed: s.speed, dmg: s.dmg, r: s.r, color: s.color,
+      xp: s.xp, facing: rand(0, 1) < 0.5 ? 1 : -1, facingUp: rand(0, 1) < 0.5,
+    });
+  }
 });
 
 // 개발/테스트용: 게임 진행 중 'Y' 키로 3번 보스(폭주 차량) 즉시 발동
