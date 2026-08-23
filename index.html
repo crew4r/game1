@@ -350,6 +350,12 @@
     font-size: 11px; color: rgba(255,255,255,0.4);
     pointer-events: none;
   }
+  /* 렉 원인 진단용 FPS 표시 - 이 정도 텍스트 하나 매초 갱신하는 건 성능에 영향 없음 */
+  #fpsCounter {
+    position: fixed; top: 24px; left: 10px; z-index: 46;
+    font-size: 11px; font-family: monospace; color: rgba(255,255,255,0.55);
+    pointer-events: none;
+  }
   #globalStats {
     position: fixed; top: 8px; right: 10px; z-index: 46;
     font-size: 11px; color: rgba(255,255,255,0.5);
@@ -563,6 +569,7 @@
 </div>
 
 <div id="buildVersion">v0.9.3</div>
+<div id="fpsCounter"></div>
 <div id="globalStats">🎮 누적 플레이 <span id="totalPlaysText">-</span>회 · 📅 오늘 플레이 <span id="dailyPlaysText">-</span>회</div>
 
 <div id="startModal">
@@ -3893,12 +3900,28 @@ function render() {
 
 // ---------- 루프 ----------
 let paused = false;
+// 렉 원인 진단용: 실제 프레임 시간을 측정해서 화면 좌상단에 FPS/근처 몹 수를 표시한다.
+// 0.5초마다 갱신(매 프레임 DOM 텍스트 갱신은 그 자체로 비용이라 드물게만 업데이트).
+let fpsFrameCount = 0, fpsIntervalStart = 0;
 function loop(ts) {
   if (!running || paused) return;
   const dt = Math.min(0.05, (ts - lastTs) / 1000);
   lastTs = ts;
   update(dt);
   render();
+
+  if (!fpsIntervalStart) fpsIntervalStart = ts;
+  fpsFrameCount++;
+  const elapsed = ts - fpsIntervalStart;
+  if (elapsed >= 500) {
+    const fps = Math.round((fpsFrameCount * 1000) / elapsed);
+    const nearby = queryEnemiesNear(player.x, player.y, 450).length;
+    const el = document.getElementById('fpsCounter');
+    if (el) el.textContent = `FPS ${fps} · 근처 몹 ${nearby} · 전체 ${enemies.length}`;
+    fpsFrameCount = 0;
+    fpsIntervalStart = ts;
+  }
+
   if (running && !paused) requestAnimationFrame(loop);
 }
 
