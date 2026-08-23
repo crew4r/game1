@@ -1621,6 +1621,8 @@ function initGame() {
   fireTrail = [];
   camera = { x: 0, y: 0 };
   gameTime = 0;
+  lastHitSoundTime = -999; // 재시작 시 초기화 안 하면, 새 판의 gameTime(0부터 시작)이 이전 판 종료 시점의
+                            // lastHitSoundTime을 넘어설 때까지 히트 사운드 쿨다운 체크가 계속 막혀서 조용해짐
   growthTime = 0;
   postBossGraceTimer = 0;
   killCount = 0;
