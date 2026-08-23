@@ -460,9 +460,25 @@
     padding: 8px 20px; font-size: 14px; background: #ffd54f; border: none;
     border-radius: 6px; cursor: pointer; font-weight: bold;
   }
+  #submitBtnRow {
+    display: flex; justify-content: center; gap: 10px; margin-top: 14px;
+  }
+  #backToTitleBtn2 {
+    padding: 8px 20px; font-size: 14px;
+    background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
+    border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
+  #postGameBtnRow {
+    display: flex; justify-content: center; gap: 10px; margin-top: 14px;
+  }
   #playAgainBtn {
-    display: block; margin: 14px auto 0; padding: 10px 24px; font-size: 16px;
+    padding: 10px 24px; font-size: 16px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
+  #backToTitleBtn {
+    padding: 10px 24px; font-size: 16px;
+    background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
+    border-radius: 6px; cursor: pointer; font-weight: bold;
   }
 </style>
 </head>
@@ -511,7 +527,10 @@
   <div id="nicknameEntry">
     <input id="nicknameInput" maxlength="10" placeholder="닉네임을 입력하세요" />
     <div id="nicknameError"></div>
-    <button id="submitScoreBtn">리더보드 등록</button>
+    <div id="submitBtnRow">
+      <button id="submitScoreBtn">리더보드 등록</button>
+      <button id="backToTitleBtn2">타이틀로</button>
+    </div>
   </div>
   <div id="leaderboardWrap">
     <h3>🏆 리더보드</h3>
@@ -523,7 +542,10 @@
     <ol id="allTimeList"></ol>
     <h4>📅 이번 주 TOP 20 (매주 초기화)</h4>
     <ol id="leaderboardList"></ol>
-    <button id="playAgainBtn">다시 시작</button>
+    <div id="postGameBtnRow">
+      <button id="playAgainBtn">다시 시작</button>
+      <button id="backToTitleBtn">타이틀로</button>
+    </div>
   </div>
 </div>
 
@@ -3435,9 +3457,12 @@ function render() {
       ctx.font = '18px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.9)';
-      ctx.shadowBlur = 6;
+      // 배경이 어두운 편이라 검은 글로우는 대비가 약함(특히 밝은 색 이모지) - 흰색 글로우로 변경
+      // 반경이 크면 아이콘 테두리가 안개처럼 흐릿하게 번져 "반투명해 보인다"는 인상을 줘서 좁게 조정
+      ctx.shadowColor = 'rgba(255,255,255,0.9)';
+      ctx.shadowBlur = 3;
       ctx.fillText(b.icon, b.x + ox, b.y + oy);
+      ctx.fillText(b.icon, b.x + ox, b.y + oy); // 한 번 더 덧그려서 테두리를 더 또렷하게
       ctx.restore();
     } else {
       ctx.beginPath();
@@ -3959,6 +3984,13 @@ document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitScore();
 });
 document.getElementById('playAgainBtn').onclick = initGame;
+function backToTitle() {
+  document.getElementById('gameOverModal').style.display = 'none';
+  document.getElementById('startModal').style.display = 'flex';
+  renderCharSelect(); // 캐릭터 선택 화면으로 돌아갈 때 최신 선택 상태/횟수 반영
+}
+document.getElementById('backToTitleBtn').onclick = backToTitle;
+document.getElementById('backToTitleBtn2').onclick = backToTitle;
 
 // 시작 화면에서 리더보드 조회
 document.getElementById('viewLeaderboardBtn').onclick = () => {
