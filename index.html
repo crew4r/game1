@@ -173,11 +173,26 @@
   .charOption.selected .charCount { color: #ffd54f; }
   .charOption.selected { border-color: #ffd54f; background: rgba(255,213,79,0.12); }
   .charOption.selected .charName { color: #ffd54f; font-weight: bold; }
+  #difficultyRow { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
   #startBtn {
-    margin-top: 20px; padding: 12px 32px; font-size: 18px;
+    margin-top: 0; padding: 12px 32px; font-size: 18px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer;
     font-weight: bold; width: 220px; box-sizing: border-box;
   }
+  .difficultyCol { position: relative; }
+  .difficultyBtn {
+    padding: 10px 14px; font-size: 13px; font-weight: bold;
+    background: transparent; border: 1px solid #666; color: #999;
+    border-radius: 6px; cursor: pointer; box-sizing: border-box; white-space: nowrap;
+  }
+  .difficultyBtn.easy.active { background: #69f0ae; color: #123024; border-color: #69f0ae; }
+  .difficultyBtn.hard.active { background: #ff5252; color: #fff; border-color: #ff5252; }
+  .difficultyPointer {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    font-size: 15px; line-height: 1; margin-top: 8px; white-space: nowrap;
+    visibility: hidden; pointer-events: none;
+  }
+  .difficultyPointer.active { visibility: visible; }
   #viewLeaderboardBtn, #noticeBtn, #freeboardBtn {
     margin-top: 10px; padding: 8px 22px; font-size: 14px;
     background: transparent; border: 1px solid #ffd54f; color: #ffd54f;
@@ -285,6 +300,30 @@
   #freeboardDetailMeta { color: #7ea6c9; font-size: 11px; margin-bottom: 12px; }
   #freeboardDetailContent { color: #eee; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
   #freeboardDetailContent a { color: #ffd54f; text-decoration: underline; word-break: break-all; }
+  #freeboardCommentSection { width: 92%; max-width: 480px; margin: 12px auto 0; text-align: left; box-sizing: border-box; }
+  #freeboardCommentSection h4 { color: #ffd54f; font-size: 13px; margin: 0 0 8px; }
+  #freeboardCommentList { list-style: none; padding: 0; margin: 0 0 10px; max-height: 160px; overflow-y: auto; }
+  #freeboardCommentList li {
+    padding: 8px 10px; margin-bottom: 6px; background: #241a1a; border: 1px solid #4a2c2c;
+    border-radius: 6px; font-size: 12px; color: #ddd; word-break: break-word;
+  }
+  #freeboardCommentList .fcMeta { color: #ffb74d; font-size: 11px; font-weight: bold; margin-bottom: 3px; }
+  #freeboardCommentList .fcEmpty { color: #777; text-align: center; padding: 8px 0; background: none; border: none; }
+  #freeboardCommentInput {
+    width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 13px; border-radius: 6px;
+    border: 1px solid #5a4040; background: #1a1414; color: #eee; resize: vertical; min-height: 50px;
+    font-family: inherit; margin-bottom: 6px;
+  }
+  #freeboardCommentAdminCodeInput {
+    width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 12px; border-radius: 6px;
+    border: 1px solid #5a4040; background: #1a1414; color: #eee; opacity: 0.7; margin-bottom: 6px;
+  }
+  #freeboardCommentError { color: #ff6b6b; font-size: 12px; min-height: 14px; margin-bottom: 6px; }
+  #freeboardCommentSubmitBtn {
+    display: block; width: 100%; box-sizing: border-box;
+    padding: 8px 0; font-size: 14px; border-radius: 6px; cursor: pointer;
+    background: #ffd54f; border: none; color: #1a1a26; font-weight: bold;
+  }
   #freeboardLikeRow { display: flex; justify-content: center; margin-top: 14px; }
   #freeboardLikeBtn {
     padding: 7px 18px; font-size: 13px; font-weight: bold; border-radius: 999px;
@@ -468,6 +507,12 @@
   #allTimeList li:nth-child(2) .rank { color: #cfd8dc; }
   #allTimeList li:nth-child(3) .rank { color: #d7a86e; }
   #nicknameEntry { display: flex; flex-direction: column; align-items: center; margin-top: 14px; }
+  #easyModeNotice { display: flex; flex-direction: column; align-items: center; margin-top: 14px; }
+  #easyModeNotice p { color: #999; font-size: 13px; margin: 0 0 10px; }
+  #easyModeNotice button {
+    padding: 8px 20px; font-size: 13px; border-radius: 6px; cursor: pointer;
+    background: transparent; border: 1px solid #666; color: #ccc;
+  }
   #nicknameInput {
     padding: 8px 12px; font-size: 14px; border-radius: 6px; border: 1px solid #555;
     background: #1a1a26; color: #eee; text-align: center; width: 180px; margin-bottom: 8px;
@@ -551,6 +596,10 @@
       <button id="backToTitleBtn2">타이틀로</button>
     </div>
   </div>
+  <div id="easyModeNotice" style="display:none;">
+    <p>EASY 모드 기록은 리더보드에 등록되지 않아요.</p>
+    <button id="easyNoticeBackBtn">타이틀로</button>
+  </div>
   <div id="leaderboardWrap">
     <h3>🏆 리더보드</h3>
     <div class="lbTabs">
@@ -582,7 +631,17 @@
     <div id="charSelectLabel">캐릭터 선택</div>
     <div id="charSelectRow"></div>
   </div>
-  <button id="startBtn">게임 시작</button>
+  <div id="difficultyRow">
+    <div class="difficultyCol">
+      <button id="easyModeBtn" class="difficultyBtn easy">EASY</button>
+      <div class="difficultyPointer" id="easyPointer">👆</div>
+    </div>
+    <button id="startBtn">게임 시작</button>
+    <div class="difficultyCol">
+      <button id="hardModeBtn" class="difficultyBtn hard active">HARD</button>
+      <div class="difficultyPointer active" id="hardPointer">👆</div>
+    </div>
+  </div>
   <button id="viewLeaderboardBtn">🏆 리더보드 보기</button>
   <button id="noticeBtn">⚙️ 공지사항</button>
   <button id="freeboardBtn">📝 자유게시판</button>
@@ -605,6 +664,7 @@
   <h2>⚙️ 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">리더보드 개편 및 초기화 안내</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260823">핫픽스 안내 (260823)</button>
     <button class="noticeVersionBtn" data-version="0.9.3">0.9.3 업데이트<span class="sub">좋아하는 레미니를 골라보세요</span></button>
     <button class="noticeVersionBtn" data-version="0.9.2">0.9.2 업데이트<span class="sub">나의 연수 아저씨</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260821">핫픽스 안내 (260821)</button>
@@ -647,6 +707,14 @@
     <div id="freeboardDetailActions">
       <button id="freeboardEditBtn">✏️ 수정</button>
       <button id="freeboardDeleteBtn">🗑️ 삭제</button>
+    </div>
+    <div id="freeboardCommentSection">
+      <h4>💬 댓글</h4>
+      <ul id="freeboardCommentList"></ul>
+      <textarea id="freeboardCommentInput" maxlength="200" placeholder="댓글 내용"></textarea>
+      <input id="freeboardCommentAdminCodeInput" maxlength="30" placeholder="운영자 코드 (관리자만 작성 가능)" />
+      <div id="freeboardCommentError"></div>
+      <button id="freeboardCommentSubmitBtn">댓글 등록</button>
     </div>
     <button id="freeboardDetailBackBtn">← 목록으로</button>
   </div>
@@ -1448,8 +1516,10 @@ function renderCharSelect() {
 }
 renderCharSelect(); // 초기 렌더(0으로 표시) - 실제 값은 아래에서 서버 조회 후 갱신
 
+let currentRunDifficulty = 'hard'; // 이번 판이 시작될 때의 난이도를 스냅샷 - 게임오버 화면에서 리더보드 등록 가능 여부 판단용
 function initGame() {
   paused = false;
+  currentRunDifficulty = selectedDifficulty;
   document.getElementById('pauseOverlay').style.display = 'none';
   document.getElementById('pauseBtn').textContent = '⏸️';
   // 게임오버/공지사항/게시판 등에서 disableTouchZone()으로 꺼둔 전체화면 터치 차단막을
@@ -1527,6 +1597,25 @@ function initGame() {
 }
 
 // ---------- 스폰 ----------
+// EASY/HARD 난이도: 시작 화면에서 고른 값을 게임 시작 시점에 그대로 적용.
+// enemyStatsForTime() 한 곳만 배율을 곱해두면 일반 몹은 물론 엘리트/보스(피디니무, 폭주
+// 차량 등)도 전부 이 값을 기준으로 스탯을 잡기 때문에 자동으로 같이 쉬워진다.
+// 리더보드는 HARD 기록만 인정(EASY는 등록 자체를 막음 - endGame()에서 처리).
+let selectedDifficulty = 'hard'; // 'easy' | 'hard'
+const DIFFICULTY_SETTINGS = {
+  hard: { hpMult: 1, dmgMult: 1, spawnIntervalMult: 1 },
+  easy: { hpMult: 0.6, dmgMult: 0.6, spawnIntervalMult: 1.3 },
+};
+function setDifficulty(diff) {
+  selectedDifficulty = diff;
+  document.getElementById('easyModeBtn').classList.toggle('active', diff === 'easy');
+  document.getElementById('easyPointer').classList.toggle('active', diff === 'easy');
+  document.getElementById('hardModeBtn').classList.toggle('active', diff === 'hard');
+  document.getElementById('hardPointer').classList.toggle('active', diff === 'hard');
+}
+document.getElementById('easyModeBtn').onclick = () => setDifficulty('easy');
+document.getElementById('hardModeBtn').onclick = () => setDifficulty('hard');
+
 function enemyStatsForTime(t) {
   const tier = Math.min(Math.floor(t / 30), 6);
   let baseSpeed = 60 + tier * 6;
@@ -1553,10 +1642,11 @@ function enemyStatsForTime(t) {
     const speedGrowth = Math.pow(1.055, (t - 180) / 60);
     baseSpeed = Math.round(baseSpeed * speedGrowth);
   }
+  const diff = DIFFICULTY_SETTINGS[selectedDifficulty] || DIFFICULTY_SETTINGS.hard;
   return {
-    hp,
+    hp: Math.max(1, Math.round(hp * diff.hpMult)),
     speed: baseSpeed * rand(0.7, 1.35), // 개체마다 속도 랜덤 편차
-    dmg,
+    dmg: Math.max(1, Math.round(dmg * diff.dmgMult)),
     r: 12,
     color: `hsl(${0 + tier * 8}, 70%, 50%)`,
     xp: xpVal,
@@ -2150,7 +2240,8 @@ function update(dt) {
     spawnTimer -= dt;
     const MOBILE_SPAWN_INTERVAL_MULT = 1.15; // 모바일은 스폰 간격을 15% 더 여유롭게
     const MOBILE_BURST_MULT = 0.85;          // 모바일은 버스트량도 15% 낮게
-    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1); // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1)
+      * (DIFFICULTY_SETTINGS[selectedDifficulty] || DIFFICULTY_SETTINGS.hard).spawnIntervalMult; // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
     const spawnInterval = spawnIntervalBase * (1 + (1 - graceProgress) * 1.2); // 유예 시작 시 간격 최대 2.2배로 완화
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
@@ -3986,7 +4077,10 @@ function endGame() {
     `도달 레벨: Lv.${level}<br>` +
     `처치 수: ${killCount}<br>` +
     `점수: ${lastScore}`;
-  document.getElementById('nicknameEntry').style.display = 'flex';
+  // EASY 모드로 플레이한 판은 리더보드에 등록할 수 없음 - 닉네임 입력 대신 안내 문구만 표시
+  const isEasyRun = currentRunDifficulty === 'easy';
+  document.getElementById('nicknameEntry').style.display = isEasyRun ? 'none' : 'flex';
+  document.getElementById('easyModeNotice').style.display = isEasyRun ? 'flex' : 'none';
   document.getElementById('leaderboardWrap').style.display = 'none';
   document.getElementById('nicknameInput').value = '';
   document.getElementById('gameOverModal').style.display = 'flex';
@@ -4136,6 +4230,7 @@ function backToTitle() {
 }
 document.getElementById('backToTitleBtn').onclick = backToTitle;
 document.getElementById('backToTitleBtn2').onclick = backToTitle;
+document.getElementById('easyNoticeBackBtn').onclick = backToTitle;
 
 // 시작 화면에서 리더보드 조회
 document.getElementById('viewLeaderboardBtn').onclick = () => {
@@ -4153,6 +4248,14 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 const NOTICE_CONTENT = {
+  'hotfix260823': {
+    title: '핫픽스 안내 (260823)',
+    items: [
+      { text: '이제 난이도를 선택할 수 있습니다.' },
+      { text: '쉬움 모드로 연습하고 하드 모드에서 기록을 남겨보세요.' },
+      { text: '리더보드 랭크는 하드모드에서만 등록됩니다.' },
+    ],
+  },
   'notice_leaderboard_weekly': {
     title: '리더보드 개편 및 초기화 안내',
     items: [
@@ -4284,7 +4387,7 @@ let freeboardPosts = [];
 let freeboardDetailIndex = -1;
 
 // 운영자만 아는 코드 - 게시글 등록 시 이걸 입력하면 운영자 배지가 붙음 (Firestore 규칙에서도 동일 코드로 검증)
-const FREEBOARD_ADMIN_CODE = 'rescene-pd-2026-op';
+const FREEBOARD_ADMIN_CODE = 'qorwpdjxor';
 
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -4357,7 +4460,79 @@ function showFreeboardDetail(index) {
   const alreadyLiked = getLikedPostIds().has(p.id);
   likeBtn.classList.toggle('liked', alreadyLiked);
   likeBtn.disabled = alreadyLiked;
+
+  document.getElementById('freeboardCommentInput').value = '';
+  document.getElementById('freeboardCommentAdminCodeInput').value = '';
+  document.getElementById('freeboardCommentError').textContent = '';
+  renderFreeboardComments(p.id);
 }
+
+async function renderFreeboardComments(postId) {
+  const listEl = document.getElementById('freeboardCommentList');
+  listEl.innerHTML = '<li class="fcEmpty">불러오는 중...</li>';
+  if (!window.fbLoadComments) {
+    listEl.innerHTML = '<li class="fcEmpty">댓글 연결 실패</li>';
+    return;
+  }
+  const comments = await window.fbLoadComments(postId);
+  listEl.innerHTML = '';
+  if (!comments.length) {
+    listEl.innerHTML = '<li class="fcEmpty">아직 댓글이 없어요.</li>';
+    return;
+  }
+  comments.forEach(c => {
+    const li = document.createElement('li');
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'fcMeta';
+    metaDiv.textContent = '👑 운영자';
+    const msgDiv = document.createElement('div');
+    msgDiv.innerHTML = linkifyMessage(c.message || '');
+    li.appendChild(metaDiv);
+    li.appendChild(msgDiv);
+    listEl.appendChild(li);
+  });
+}
+
+// 댓글은 운영자 코드가 맞을 때만 등록 가능(관리자 전용) - 게시글과 달리 코드가 틀리면
+// 일반 댓글로 조용히 넘어가지 않고 아예 등록을 막는다.
+async function submitFreeboardComment() {
+  const p = freeboardPosts[freeboardDetailIndex];
+  if (!p) return;
+  const input = document.getElementById('freeboardCommentInput');
+  const codeInput = document.getElementById('freeboardCommentAdminCodeInput');
+  const errorEl = document.getElementById('freeboardCommentError');
+  const message = input.value.trim();
+  const code = codeInput.value.trim();
+
+  if (code !== FREEBOARD_ADMIN_CODE) {
+    errorEl.textContent = '운영자 코드가 일치하지 않아 댓글을 작성할 수 없어요.';
+    return;
+  }
+  if (!message) {
+    errorEl.textContent = '댓글 내용을 입력해주세요.';
+    return;
+  }
+  if (containsProfanity(message)) {
+    errorEl.textContent = '부적절한 표현이 포함되어 있어요.';
+    return;
+  }
+  errorEl.textContent = '';
+
+  const btn = document.getElementById('freeboardCommentSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '등록 중...';
+  const ok = window.fbSubmitComment ? await window.fbSubmitComment(p.id, message.slice(0, 200)) : false;
+  btn.disabled = false;
+  btn.textContent = '댓글 등록';
+  if (!ok) {
+    errorEl.textContent = '등록 실패 (네트워크/설정을 확인해주세요)';
+    return;
+  }
+  input.value = '';
+  codeInput.value = '';
+  await renderFreeboardComments(p.id);
+}
+document.getElementById('freeboardCommentSubmitBtn').onclick = submitFreeboardComment;
 
 async function handleEditPost() {
   const p = freeboardPosts[freeboardDetailIndex];
@@ -4830,6 +5005,32 @@ window.addEventListener('load', () => {
     } catch (e) {
       console.warn("추천 실패:", e);
       return false;
+    }
+  };
+
+  // 게시글 댓글 (관리자만 작성 가능 - 운영자 코드 확인은 호출 전 클라이언트에서 이미 마쳤다고 가정)
+  window.fbSubmitComment = async function (postId, message) {
+    try {
+      await addDoc(collection(db, "freeboard", postId, "comments"), {
+        message,
+        createdAt: serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      console.error("댓글 등록 실패:", e);
+      return false;
+    }
+  };
+  window.fbLoadComments = async function (postId) {
+    try {
+      const q = query(collection(db, "freeboard", postId, "comments"), orderBy("createdAt", "asc"), limit(200));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      return list;
+    } catch (e) {
+      console.error("댓글 조회 실패:", e);
+      return [];
     }
   };
 
