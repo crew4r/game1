@@ -1425,7 +1425,7 @@ const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.inn
 document.getElementById('fpsCounter').classList.toggle('mobile', isMobileLayout); // 모바일에서는 상단이 손가락에 가려지기 쉬워 하단으로
 const MOBILE_CHAR_SCALE = 1; // 컴패니언 크기 기준으로 통일 (축소 없음)
 const MOBILE_ZOOM = 0.65; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임 (기존 0.55에서 살짝 확대)
-const MAX_ENEMIES = isMobileLayout ? 260 : 450; // 동시 생존 개체수 상한 (공간 분할 적용으로 상향 가능해짐)
+const MAX_ENEMIES = isMobileLayout ? 260 : 320; // 동시 생존 개체수 상한 (공간 분할 적용으로 상향 가능해짐)
 // 몹이 이 수를 넘어 화면에 동시에 떠 있으면(주로 한 무더기로 뭉쳤을 때) 일반 몹의
 // 그림자/체력바처럼 개체 수만큼 곱해지는 장식 요소를 생략해서 프레임을 지킨다.
 // 스폰/HP/데미지 등 실제 게임 로직에는 전혀 영향 없음 - 순수 렌더링 디테일만 줄임.
