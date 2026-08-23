@@ -399,6 +399,7 @@
     font-size: 11px; font-family: monospace; color: rgba(255,255,255,0.55);
     pointer-events: none; text-align: center;
   }
+  #fpsCounter.mobile { top: auto; bottom: 36px; } /* #bottomBar(하단 조작 안내문) 위로 겹치지 않게 띄움 */
   #globalStats {
     position: fixed; top: 8px; right: 10px; z-index: 46;
     font-size: 11px; color: rgba(255,255,255,0.5);
@@ -1406,6 +1407,7 @@ if (isTouchDevice()) {
 
 // 모바일 세로형 화면에서만 캐릭터를 더 크게 렌더링 (PC는 영향 없음)
 const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 600;
+document.getElementById('fpsCounter').classList.toggle('mobile', isMobileLayout); // 모바일에서는 상단이 손가락에 가려지기 쉬워 하단으로
 const MOBILE_CHAR_SCALE = 1; // 컴패니언 크기 기준으로 통일 (축소 없음)
 const MOBILE_ZOOM = 0.65; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임 (기존 0.55에서 살짝 확대)
 const MAX_ENEMIES = isMobileLayout ? 260 : 450; // 동시 생존 개체수 상한 (공간 분할 적용으로 상향 가능해짐)
