@@ -284,6 +284,7 @@
   #freeboardDetailTitle { color: #ffd54f; font-size: 16px; font-weight: bold; margin-bottom: 4px; word-break: break-word; }
   #freeboardDetailMeta { color: #7ea6c9; font-size: 11px; margin-bottom: 12px; }
   #freeboardDetailContent { color: #eee; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  #freeboardDetailContent a { color: #ffd54f; text-decoration: underline; word-break: break-all; }
   #freeboardDetailActions {
     display: flex; gap: 8px; margin: 12px auto 0;
     width: 92%; max-width: 480px; box-sizing: border-box;
@@ -4199,6 +4200,22 @@ function showFreeboardListView() {
   document.getElementById('freeboardListView').style.display = 'block';
   document.getElementById('freeboardDetailView').style.display = 'none';
 }
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// 게시글 본문 안의 URL을 클릭 가능한 링크로 바꿔준다. innerHTML로 넣기 전에 반드시
+// escapeHtml부터 해서(순서 중요) 사용자가 입력한 <script> 등이 실행되지 않게 막은 뒤,
+// 이스케이프된 문자열 위에서 URL 패턴만 <a> 태그로 감싼다.
+function linkifyMessage(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+    // 문장 끝에 붙은 마침표/쉼표/괄호 등은 링크 밖으로 빼준다
+    const m = url.match(/[).,!?;:'"]+$/);
+    const trail = m ? m[0] : '';
+    const clean = trail ? url.slice(0, -trail.length) : url;
+    return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+  });
+}
 function showFreeboardDetail(index) {
   const p = freeboardPosts[index];
   if (!p) return;
@@ -4207,7 +4224,7 @@ function showFreeboardDetail(index) {
   document.getElementById('freeboardDetailView').style.display = 'block';
   document.getElementById('freeboardDetailTitle').textContent = (p.isAdmin ? '👑 ' : '') + (p.title || '(제목 없음)');
   document.getElementById('freeboardDetailMeta').textContent = (p.nickname || '익명의 리센느') + (p.isAdmin ? ' · 운영자' : '');
-  document.getElementById('freeboardDetailContent').textContent = p.message || '';
+  document.getElementById('freeboardDetailContent').innerHTML = linkifyMessage(p.message || '');
 }
 
 async function handleEditPost() {
