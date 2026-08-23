@@ -1253,6 +1253,10 @@ const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.inn
 const MOBILE_CHAR_SCALE = 1; // 컴패니언 크기 기준으로 통일 (축소 없음)
 const MOBILE_ZOOM = 0.65; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임 (기존 0.55에서 살짝 확대)
 const MAX_ENEMIES = isMobileLayout ? 260 : 450; // 동시 생존 개체수 상한 (공간 분할 적용으로 상향 가능해짐)
+// 몹이 이 수를 넘어 화면에 동시에 떠 있으면(주로 한 무더기로 뭉쳤을 때) 일반 몹의
+// 그림자/체력바처럼 개체 수만큼 곱해지는 장식 요소를 생략해서 프레임을 지킨다.
+// 스폰/HP/데미지 등 실제 게임 로직에는 전혀 영향 없음 - 순수 렌더링 디테일만 줄임.
+const HIGH_DENSITY_ENEMY_THRESHOLD = 120;
 
 function joystickShowAt(x, y) {
   joystickCenter.x = x; joystickCenter.y = y;
@@ -3699,8 +3703,9 @@ function render() {
       ctx.strokeStyle = `rgba(${auraColor},0.55)`;
       ctx.lineWidth = 2;
       ctx.stroke();
-    } else {
-      // 일반 몹 접지 그림자 (원 하나만 채우는 아주 가벼운 연산이라 다수 개체에도 부담 없음)
+    } else if (!isHighDensity) {
+      // 일반 몹 접지 그림자. 개체당 비용은 작지만, 몹이 아주 많이 뭉쳐서 화면에
+      // 동시에 그려질 때는 이 정도도 누적되므로 밀집 상황에서는 생략한다(아래 hp바도 동일).
       ctx.beginPath();
       ctx.ellipse(ex, ey + eh * 0.32, e.r * 0.75, e.r * 0.32, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -3751,14 +3756,18 @@ function render() {
       }
     }
 
-    // hp bar (엘리트는 더 넓고 색이 다름)
-    const barW = e.isElite ? 44 : 28;
-    const barY = ey - eh / 2 - (e.isElite ? 14 : 8);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(ex - barW / 2, barY, barW, 5);
-    ctx.fillStyle = e.isElite ? (isPD ? '#ffd700' : '#b26fe0') : '#5f5';
-    ctx.fillRect(ex - barW / 2, barY, barW * (e.hp / e.maxHp), 5);
+    // hp bar (엘리트는 더 넓고 색이 다름). 일반 몹은 밀집 상황에서 생략(위 그림자와 동일한 이유) -
+    // 어차피 그 밀도에서는 낱개 체력바가 잘 보이지도 않고, 엘리트는 몇 안 되니 항상 그린다.
+    if (e.isElite || !isHighDensity) {
+      const barW = e.isElite ? 44 : 28;
+      const barY = ey - eh / 2 - (e.isElite ? 14 : 8);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(ex - barW / 2, barY, barW, 5);
+      ctx.fillStyle = e.isElite ? (isPD ? '#ffd700' : '#b26fe0') : '#5f5';
+      ctx.fillRect(ex - barW / 2, barY, barW * (e.hp / e.maxHp), 5);
+    }
   }
+  const isHighDensity = enemies.length > HIGH_DENSITY_ENEMY_THRESHOLD;
   for (const e of enemies) { if (!e.isElite) drawEnemyEntity(e); }
   for (const e of enemies) { if (e.isElite) drawEnemyEntity(e); }
 
