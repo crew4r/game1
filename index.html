@@ -9,6 +9,11 @@
     margin: 0; padding: 0; overflow: hidden;
     background: #0a0a12; font-family: 'Malgun Gothic', sans-serif;
     color: #eee; user-select: none;
+    /* 모바일에서 당겨서 새로고침 등 바운스 스크롤 자체를 문서 레벨에서 차단.
+       touch-action:none은 여기(html/body)에 걸면 리더보드/게시판 목록의 내부 스크롤까지
+       같이 막혀버려서(자손 요소가 조상의 touch-action 제한을 못 풀어줌) 넣지 않는다 -
+       실제 게임 중 드래그 차단은 #touchZone(게임 플레이 중에만 표시)이 담당한다. */
+    overscroll-behavior: none;
   }
   #gameCanvas { display: block; background: #14141f; }
   #ui {
@@ -1390,6 +1395,10 @@ function initGame() {
   paused = false;
   document.getElementById('pauseOverlay').style.display = 'none';
   document.getElementById('pauseBtn').textContent = '⏸️';
+  // 게임오버/공지사항/게시판 등에서 disableTouchZone()으로 꺼둔 전체화면 터치 차단막을
+  // 여기서 다시 켜줘야 한다 - 안 그러면 그 이후 플레이부터는 화면이 브라우저 기본
+  // 스크롤/당겨서 새로고침 제스처에 그대로 노출돼서 게임 중 화면이 드래그되는 문제가 생김
+  if (isTouchDevice()) touchZone.style.display = 'block';
   player = {
     x: 0, y: 0, r: 18, speed: 220,
     hp: 100, maxHp: 100,
