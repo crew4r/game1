@@ -727,16 +727,28 @@ function hash2(x, y) {
   return n - Math.floor(n);
 }
 const OBSTACLE_CELL = 240;
+// 몹이 뭉쳐있으면 그 근처 몹들이 전부 거의 같은 칸 범위의 장애물을 매 프레임 다시
+// 계산했다(칸 하나당 Math.sin 4번). 장애물은 좌표만으로 정해지는 고정값이라 한 번
+// 계산한 칸은 캐시해두고 재사용하면, 뭉쳐있을수록(=같은 칸을 여러 개체가 물어볼수록) 이득이 커진다.
+const obstacleCache = new Map();
 function getObstacleAt(cx, cy) {
+  const key = cx + ',' + cy;
+  const cached = obstacleCache.get(key);
+  if (cached !== undefined) return cached;
+  let result = null;
   const h = hash2(cx, cy);
-  if (h > 0.13) return null;
-  const jx = hash2(cx + 11, cy + 7);
-  const jy = hash2(cx + 29, cy + 3);
-  const wx = cx * OBSTACLE_CELL + OBSTACLE_CELL * 0.2 + jx * OBSTACLE_CELL * 0.6;
-  const wy = cy * OBSTACLE_CELL + OBSTACLE_CELL * 0.2 + jy * OBSTACLE_CELL * 0.6;
-  if (Math.hypot(wx, wy) < 200) return null; // 시작 지점 근처는 비워둠
-  const isTree = hash2(cx + 5, cy + 91) < 0.55;
-  return { x: wx, y: wy, r: isTree ? 30 : 24, icon: isTree ? '🌲' : '🪨', isTree };
+  if (h <= 0.13) {
+    const jx = hash2(cx + 11, cy + 7);
+    const jy = hash2(cx + 29, cy + 3);
+    const wx = cx * OBSTACLE_CELL + OBSTACLE_CELL * 0.2 + jx * OBSTACLE_CELL * 0.6;
+    const wy = cy * OBSTACLE_CELL + OBSTACLE_CELL * 0.2 + jy * OBSTACLE_CELL * 0.6;
+    if (Math.hypot(wx, wy) >= 200) { // 시작 지점 근처는 비워둠
+      const isTree = hash2(cx + 5, cy + 91) < 0.55;
+      result = { x: wx, y: wy, r: isTree ? 30 : 24, icon: isTree ? '🌲' : '🪨', isTree };
+    }
+  }
+  obstacleCache.set(key, result);
+  return result;
 }
 function getNearbyObstacles(x, y, margin) {
   const list = [];
