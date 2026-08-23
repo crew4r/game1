@@ -772,11 +772,15 @@ const ENEMY_BACK_IMG_RATIO = 104 / 200;
 // 이미지당 딱 한 번만 오프스크린 캔버스에 구워두고 이후로는 그 결과물을 그대로 그린다.
 const ENEMY_GLOW_PAD = 16;
 const enemyGlowSpriteCache = {};
-function bakeGlowSprite(img, w, h) {
+function bakeGlowSprite(img, w, h, flip) {
   const cnv = document.createElement('canvas');
   cnv.width = Math.ceil(w + ENEMY_GLOW_PAD * 2);
   cnv.height = Math.ceil(h + ENEMY_GLOW_PAD * 2);
   const gctx = cnv.getContext('2d');
+  // 좌우 반전판도 굽는 시점에 한 번만 뒤집어서 만들어둔다 - 이러면 매 프레임 그릴 때
+  // ctx.save/translate/scale/restore 없이 그냥 drawImage 한 번으로 끝낼 수 있다
+  // (몹이 수백 마리 겹쳐있을 때 캔버스 상태 저장/복원 비용이 프레임 드랍의 큰 원인이었음)
+  if (flip) { gctx.translate(cnv.width, 0); gctx.scale(-1, 1); }
   gctx.shadowColor = 'rgba(255,255,255,0.4)';
   gctx.shadowBlur = 5;
   gctx.drawImage(img, ENEMY_GLOW_PAD, ENEMY_GLOW_PAD, w, h);
@@ -3688,23 +3692,26 @@ function render() {
     }
 
     if (curImg.complete && curImg.naturalWidth) {
-      ctx.save();
-      ctx.translate(ex, ey);
-      ctx.scale(e.facing || 1, 1);
       if (!e.isElite) {
         // 일반 몹(백제자객)이 화려해진 배경에 묻혀 안 보이는 문제 완화용 외곽 글로우.
-        // 사전에 구워둔 스프라이트(bakeGlowSprite)를 그냥 그리기만 해서 런타임 shadowBlur 비용을 없앤다.
-        const glowKey = e.facingUp ? 'back' : 'front';
+        // 방향(위/아래 x 좌/우)별로 미리 구워둔 스프라이트를 좌표 계산만으로 그린다 -
+        // ctx.save/translate/scale/restore를 매 개체마다 안 써도 되게 해서, 몹이 수백 마리
+        // 겹쳐있을 때 그 캔버스 상태 저장/복원 비용이 그대로 곱해져 프레임이 끊기던 문제를 줄인다.
+        const flip = (e.facing || 1) < 0;
+        const glowKey = (e.facingUp ? 'back' : 'front') + (flip ? '_f' : '');
         let glow = enemyGlowSpriteCache[glowKey];
         if (!glow) {
-          glow = bakeGlowSprite(curImg, ew, eh);
+          glow = bakeGlowSprite(curImg, ew, eh, flip);
           enemyGlowSpriteCache[glowKey] = glow;
         }
-        ctx.drawImage(glow, -ew / 2 - ENEMY_GLOW_PAD, -eh / 2 + eh * 0.08 - ENEMY_GLOW_PAD, ew + ENEMY_GLOW_PAD * 2, eh + ENEMY_GLOW_PAD * 2);
+        ctx.drawImage(glow, ex - ew / 2 - ENEMY_GLOW_PAD, ey - eh / 2 + eh * 0.08 - ENEMY_GLOW_PAD, ew + ENEMY_GLOW_PAD * 2, eh + ENEMY_GLOW_PAD * 2);
       } else {
+        ctx.save();
+        ctx.translate(ex, ey);
+        ctx.scale(e.facing || 1, 1);
         ctx.drawImage(curImg, -ew / 2, -eh / 2 + eh * 0.08, ew, eh);
+        ctx.restore();
       }
-      ctx.restore();
     } else {
       ctx.beginPath();
       ctx.arc(ex, ey, e.r, 0, Math.PI * 2);
