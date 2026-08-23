@@ -3823,7 +3823,7 @@ function render() {
   }
 
   function drawMiniCar(e, ex, ey) {
-    const size = e.r * 2.6 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1);
+    const size = e.r * 2.6 * 0.8 * (isMobileLayout ? MOBILE_CHAR_SCALE : 1); // 크기 20% 축소
     const isDash = e.miniState === 'dash';
     const isGroggy = e.miniState === 'groggy';
     let jx = 0, jy = 0;
