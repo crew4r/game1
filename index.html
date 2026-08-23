@@ -4090,7 +4090,7 @@ function render() {
   // 엘리트몹 곰 탈 던지기 투사체 - 다른 모든 요소보다 위(최상단)에 그려지도록 마지막에 렌더링
   for (const th of eliteThrows) {
     const sx = th.x + ox, sy = th.y + oy;
-    const size = th.r * 2.4;
+    const size = th.r * 2.4 * 0.9; // 크기 10% 축소
     const hw = size, hh = size / ELITE_HEAD_RATIO;
     ctx.save();
     ctx.translate(sx, sy);
