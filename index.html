@@ -2911,7 +2911,7 @@ function fireWeapon(w) {
     }
     throws.push({
       x0: player.x, y0: player.y, tx, ty, t: 0, duration: w.flightTime,
-      dmg, radius: w.radius, icon: '👍', landed: false
+      dmg, radius: w.radius, icon: w.icon || '👍', landed: false
     });
 
   } else if (w.type === 'orbit') {
@@ -3673,7 +3673,7 @@ function render() {
     ctx.restore();
   }
 
-  // 오이쉬에(투척) 표시 - 이모지 대신 직접 그린 엄지척 도형 (기기별 이모지 폰트 렌더링 문제 회피)
+  // 오이쉬에(투척) 표시 - 캐릭터별 리스킨 아이콘(th.icon)을 이모지로 그림
   for (const th of throws) {
     const p = Math.min(1, th.t / th.duration);
     const x = th.x0 + (th.tx - th.x0) * p;
@@ -3686,27 +3686,14 @@ function render() {
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(spin);
-    ctx.fillStyle = '#f2b46d';
-    ctx.strokeStyle = '#c9873f';
-    ctx.lineWidth = 1.5;
-    // 주먹 부분
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(-size * 0.32, -size * 0.12, size * 0.64, size * 0.46, size * 0.14);
-    } else {
-      ctx.rect(-size * 0.32, -size * 0.12, size * 0.64, size * 0.46);
-    }
-    ctx.fill();
-    ctx.stroke();
-    // 엄지 부분
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(-size * 0.1, -size * 0.5, size * 0.2, size * 0.42, size * 0.1);
-    } else {
-      ctx.rect(-size * 0.1, -size * 0.5, size * 0.2, size * 0.42);
-    }
-    ctx.fill();
-    ctx.stroke();
+    ctx.font = `${size}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // 배경이 어두운 편이라 흰색 글로우로 테두리를 또렷하게 (총알 아이콘과 동일한 방식)
+    ctx.shadowColor = 'rgba(255,255,255,0.9)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(th.icon, 0, 0);
+    ctx.fillText(th.icon, 0, 0);
     ctx.restore();
 
     if (p > 0.6) {
