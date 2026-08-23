@@ -1127,11 +1127,19 @@ window.onYouTubeIframeAPIReady = function () {
           const idx = ytPlayer.getPlaylistIndex();
           const next = pickRandomVideoIndex(idx);
           ytPlayer.playVideoAt(next);
+        } else if (e.data === YT.PlayerState.PLAYING) {
+          // 오류로 건너뛰는 동안 숨겨뒀던 플레이어를, 실제로 재생이 시작되면 다시 보여준다
+          const wrap = document.getElementById('ytPlayerWrap');
+          if (wrap) wrap.style.visibility = 'visible';
         }
       },
       onError: (e) => {
-        // 임베드 금지 등으로 재생 불가한 영상은 건너뛰고 랜덤한 다음 곡 재생
+        // 임베드 금지 등으로 재생 불가한 영상은 건너뛰고 랜덤한 다음 곡 재생.
+        // 다음 곡으로 넘어가기 전 유튜브 자체 오류 화면(오류 153 등)이 잠깐 노출되는 걸
+        // 막기 위해 재생 성공 전까지 플레이어를 숨겨둔다.
         console.warn('유튜브 재생 오류(임베드 제한 가능성), 코드:', e.data, '→ 다음 곡으로 이동');
+        const wrap = document.getElementById('ytPlayerWrap');
+        if (wrap) wrap.style.visibility = 'hidden';
         const idx = ytPlayer.getPlaylistIndex();
         const next = pickRandomVideoIndex(idx);
         ytPlayer.playVideoAt(next);
