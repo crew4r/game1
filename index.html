@@ -2159,7 +2159,7 @@ function spawnGeneralEnemy() {
     // 공격 패턴 상태머신: chase(추격, 플레이어 이동속도의 90%) -> windup(0.5초 정지+진동) -> swing(칼 휘두르기 부채꼴 판정)
     generalState: 'chase',
     generalStateTimer: 0,
-    fanRange: eh * 0.85, // 부채꼴 사거리 = 이미지 속 칼 길이만큼 (임시값, 밸런스 보면서 조정)
+    fanRange: eh * 1.5, // 공격 트리거 사거리 - 거의 붙어야만 공격하던 문제로 상향 (기존 0.85배는 몸싸움 수준으로 너무 짧았음)
     shakeSeed: rand(0, 10), // 진동 위상이 다른 개체끼리 겹치지 않도록
   });
 }
