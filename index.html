@@ -659,7 +659,7 @@
       <div class="difficultyPointer active" id="hardPointer">👆</div>
     </div>
   </div>
-  <button id="viewLeaderboardBtn"><span class="menuBtnLabel">🏆 리더보드 보기<span class="newBadge" id="lbNewBadge">New!</span></span></button>
+  <button id="viewLeaderboardBtn"><span class="menuBtnLabel">🏆 리더보드<span class="newBadge" id="lbNewBadge">New!</span></span></button>
   <button id="noticeBtn"><span class="menuBtnLabel">⚙️ 공지사항<span class="newBadge" id="noticeNewBadge">New!</span></span></button>
   <button id="freeboardBtn"><span class="menuBtnLabel">📝 자유게시판<span class="newBadge" id="freeboardNewBadge">New!</span></span></button>
   <div id="difficultyNotice" class="hard">최고 기록을 갱신해 랭킹에 도전해 보세요!</div>
@@ -2042,12 +2042,13 @@ function updateCarBoss(e, dt) {
     const reachedY = e.carDirY !== 0 && ((e.carDirY > 0 && e.y >= e.carTargetY) || (e.carDirY < 0 && e.y <= e.carTargetY));
     if (reachedX || reachedY || hitObstacle) {
       e.carState = 'groggy';
-      e.carStateTimer = 1.5;
       e.groggyCount = (e.groggyCount || 0) + 1;
       if (hitObstacle) {
+        e.carStateTimer = 1.5;
         spawnParticles(e.x, e.y, '#8d6e63', 16);
         floatingTexts.push({ x: e.x, y: e.y - 30, text: '💥 충돌! 그로기!', life: 1.2, maxLife: 1.2, size: 14, color: '#ffd54f' });
       } else {
+        e.carStateTimer = 3.0; // 외벽 충돌 그로기 시간 2배 상향 (1.5 -> 3.0)
         spawnParticles(e.x, e.y, '#ffb300', 16);
         floatingTexts.push({ x: e.x, y: e.y - 30, text: '💫 그로기!', life: 1.2, maxLife: 1.2, size: 14, color: '#ffd54f' });
       }
@@ -2154,7 +2155,7 @@ function updateMiniCarWander(e, dt) {
       e.dashTimer = 2.5; // 넉넉한 상한 - 보통은 화면 벽에 닿아서 더 일찍 끝남
       e.dashDirX = Math.cos(da);
       e.dashDirY = Math.sin(da);
-      e.dashSpeed = 560;
+      e.dashSpeed = e.speed * 0.55 * 4; // 배회 속도(e.speed*0.55)의 4배 - 기존 고정값 560은 너무 빨라서 하향
       e.dashHit = false;
       e.dashedThisTelegraph = true;
     }
