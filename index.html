@@ -764,6 +764,15 @@ resize();
 // ---------- 유틸 ----------
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
+// 카메라(플레이어 중심) 기준으로 실제 화면에 보이는지 판정 - PC/모바일 줌 배율 차이를 반영해서
+// 원거리 공격(꾸대표 곰탈 던지기 등)이 플레이어 눈에 보이지도 않는 상태에서 시작되지 않도록 사용
+function isOnScreen(e) {
+  const zoom = isMobileLayout ? MOBILE_ZOOM : 1;
+  const halfW = (canvas.width / 2) / zoom;
+  const halfH = (canvas.height / 2) / zoom;
+  return Math.abs(e.x - camera.x) <= halfW + e.r && Math.abs(e.y - camera.y) <= halfH + e.r;
+}
+
 // ---------- 적 공간 분할(spatial grid) - 무기 판정 시 전체 적 대신 근처만 조회하기 위함 ----------
 const ENEMY_GRID_CELL = 90;
 let enemyGrid = new Map();
@@ -870,9 +879,11 @@ function removeGem(g) {
 
 // 가장 가까운 적 탐색: 반경을 점점 넓혀가며 격자 조회 (전체 스캔 회피)
 function findNearestEnemy(x, y) {
+  // 플레이어 공격은 화면에 보이는 적만 대상으로 함 - 화면 밖에 있는(아직 안 보이는) 적은
+  // 아무리 가까워도 타겟에서 제외되어, 몹이 실제로 화면에 들어와야 공격이 시작된다
   const radii = [150, 300, 600, 1200, 2500];
   for (const r of radii) {
-    const nearby = queryEnemiesNear(x, y, r);
+    const nearby = queryEnemiesNear(x, y, r).filter(isOnScreen);
     if (nearby.length) {
       let nearest = null, nd = Infinity;
       for (const e of nearby) {
@@ -1138,7 +1149,7 @@ const CHARACTER_SKIN_OVERRIDES = {
     armor:  { name: '미치루딸',     icon: '🤱', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
     magnet: { name: '맥도날드',     icon: '🍟', desc: '경험치 흡수 범위 +20%' },
     cdr:    { name: '치바 폭격기',  icon: '🚀', desc: '모든 무기 쿨다운 -8%' },
-    dmgup:  { name: '치바 검은장미', icon: '🌹', desc: '모든 무기 피해량 +5%' },
+    dmgup:  { name: '치바 검은장미', icon: '🌹', desc: '모든 무기 피해량 +10%' },
     luck:   { name: '올라운더',     icon: '💯', desc: '경험치 젬 드랍량 +20%' },
     firebreath: { name: '야호', icon: '✌️', desc: '물폭탄 전용 진화 — 관통 부여(1회) + 스플래시 데미지 강화(최대 5스택)' },
   },
@@ -1153,7 +1164,7 @@ const CHARACTER_SKIN_OVERRIDES = {
     armor:  { name: '오빠바라기', icon: '🫡', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
     magnet: { name: '감사한입',   icon: '🙏', desc: '경험치 흡수 범위 +20%' },
     cdr:    { name: '최종병기',   icon: '🚀', desc: '모든 무기 쿨다운 -8%' },
-    dmgup:  { name: '이긴경은',   icon: '🏆', desc: '모든 무기 피해량 +5%' },
+    dmgup:  { name: '이긴경은',   icon: '🏆', desc: '모든 무기 피해량 +10%' },
     luck:   { name: '엽떡인간',   icon: '🍡', desc: '경험치 젬 드랍량 +20%' },
     firebreath: { name: '너도? 아 나도!', icon: '👉', desc: '폭신폭신 전용 진화 — 관통 부여(1회) + 스플래시 데미지 강화(최대 5스택)' },
   },
@@ -1168,7 +1179,7 @@ const CHARACTER_SKIN_OVERRIDES = {
     armor:  { name: '집쭝',       icon: '🎯', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
     magnet: { name: '핫걸',       icon: '💃', desc: '경험치 흡수 범위 +20%' },
     cdr:    { name: '불협화음',   icon: '🎵', desc: '모든 무기 쿨다운 -8%' },
-    dmgup:  { name: '햇살메이',   icon: '☀️', desc: '모든 무기 피해량 +5%' },
+    dmgup:  { name: '햇살메이',   icon: '☀️', desc: '모든 무기 피해량 +10%' },
     luck:   { name: '코맹메이',   icon: '🤧', desc: '경험치 젬 드랍량 +20%' },
     firebreath: { name: '그립감이 좋다!', icon: '👏', desc: '마법 전용 진화 — 관통 부여(1회) + 스플래시 데미지 강화(최대 5스택)' },
   },
@@ -1183,7 +1194,7 @@ const CHARACTER_SKIN_OVERRIDES = {
     armor:  { name: '은미딸',   icon: '🫡', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
     magnet: { name: '애햄이',   icon: '🐹', desc: '경험치 흡수 범위 +20%' },
     cdr:    { name: '신라할매', icon: '👵', desc: '모든 무기 쿨다운 -8%' },
-    dmgup:  { name: '김과영',   icon: '🏆', desc: '모든 무기 피해량 +5%' },
+    dmgup:  { name: '김과영',   icon: '🏆', desc: '모든 무기 피해량 +10%' },
     luck:   { name: '잼민이',   icon: '🚸', desc: '경험치 젬 드랍량 +20%' },
     firebreath: { name: '아뉘이이!', icon: '🚫', desc: '도토리 전용 진화 — 관통 부여(1회) + 스플래시 데미지 강화(최대 5스택)' },
   },
@@ -1636,7 +1647,7 @@ const PASSIVE_POOL = [
   { key: 'armor',  name: '덕연이딸',    icon: '🤱', desc: '획득 시 무적 실드 1개 충전 (최대 5개)' },
   { key: 'magnet', name: '밥은 줍니까?',   icon: '🍚', desc: '경험치 흡수 범위 +20%' },
   { key: 'cdr',    name: '거제 폭격기', icon: '🚀', desc: '모든 무기 쿨다운 -8%' },
-  { key: 'dmgup',  name: '거제 불주먹', icon: '👊', desc: '모든 무기 피해량 +5%' },
+  { key: 'dmgup',  name: '거제 불주먹', icon: '👊', desc: '모든 무기 피해량 +10%' },
   { key: 'luck',   name: '싱글코어',    icon: '🖥️', desc: '경험치 젬 드랍량 +20%' },
 ];
 
@@ -3062,7 +3073,7 @@ function fireWeapon(w) {
     if (!nearest) return;
     let targets = [nearest];
     if (w.count > 1) {
-      const candidates = queryEnemiesNear(player.x, player.y, 500);
+      const candidates = queryEnemiesNear(player.x, player.y, 500).filter(isOnScreen);
       candidates.sort((a, b) => dist(player, a) - dist(player, b));
       targets = candidates.length ? candidates.slice(0, w.count) : [nearest];
     }
@@ -3157,7 +3168,7 @@ function fireWeapon(w) {
 
   } else if (w.type === 'throw') {
     // 오이쉬에: 엄지를 던져 포물선 광역 피해
-    const inRange = queryEnemiesNear(player.x, player.y, w.throwRange).filter(e => dist(e, player) < w.throwRange);
+    const inRange = queryEnemiesNear(player.x, player.y, w.throwRange).filter(e => dist(e, player) < w.throwRange && isOnScreen(e));
     let tx, ty;
     if (inRange.length) {
       const t = choice(inRange);
@@ -3488,7 +3499,7 @@ function applyChoice(opt, ignoreCap) {
       case 'armor': player.shieldCount = Math.min(5, player.shieldCount + 1); break;
       case 'magnet': player.magnetRange = Math.min(cap(60 * 2.5), player.magnetRange * 1.20); break;
       case 'cdr': player.cdr = Math.min(cap(0.5), (player.cdr || 0) + 0.08); break;
-      case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.05); break;
+      case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.1); break;
       case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
     }
   } else if (opt.type === 'special' && opt.key === 'firebreath') {
