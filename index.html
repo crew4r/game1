@@ -168,6 +168,7 @@
   #startModal p { color: #aaa; max-width: 400px; line-height: 1.6; }
   #charSelectWrap { margin-top: 18px; }
   #charSelectLabel { color: #999; font-size: 12px; margin-bottom: 8px; }
+  #charSelectLabel.error { color: #ff5252; }
   #charSelectRow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .charOption {
     width: 60px; padding: 6px 4px 8px; border-radius: 10px; cursor: pointer;
@@ -425,6 +426,14 @@
     font-size: 11px; color: rgba(255,255,255,0.5);
     pointer-events: none; text-align: right;
   }
+  #globalStats:not(.mobile) .statLine:not(:first-child)::before { content: ' · '; }
+  /* 좁은 화면에서는 좌상단 버전 표시/체력바와 한 줄에서 겹치므로 두 줄로 쌓아서 폭을 줄임 */
+  #globalStats.mobile { font-size: 8px; }
+  #globalStats.mobile .statLine { display: block; }
+  /* 320px대 초소형 화면에서는 체력바 폭까지 줄여야 그래도 겹치지 않음 */
+  @media (max-width: 340px) {
+    #hpBarWrap { width: 170px; }
+  }
   #adminModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.92);
@@ -660,7 +669,7 @@
 
 <div id="buildVersion">v0.9.5</div>
 <div id="fpsCounter"></div>
-<div id="globalStats">🎮 누적 플레이 <span id="totalPlaysText">-</span>회 · 📅 오늘 플레이 <span id="dailyPlaysText">-</span>회</div>
+<div id="globalStats"><span class="statLine">🎮 누적 플레이 <span id="totalPlaysText">-</span>회</span><span class="statLine">📅 오늘 플레이 <span id="dailyPlaysText">-</span>회</span></div>
 
 <div id="startModal">
   <h1>🐾 리센느의 백제어택</h1>
@@ -1720,6 +1729,7 @@ if (isTouchDevice()) {
 // 모바일 세로형 화면에서만 캐릭터를 더 크게 렌더링 (PC는 영향 없음)
 const isMobileLayout = isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 600;
 document.getElementById('fpsCounter').classList.toggle('mobile', isMobileLayout); // 모바일에서는 상단이 손가락에 가려지기 쉬워 하단으로
+document.getElementById('globalStats').classList.toggle('mobile', isMobileLayout); // 좁은 화면에서 좌상단 버전 표시/체력바와 겹치지 않도록
 const MOBILE_CHAR_SCALE = 1; // 컴패니언 크기 기준으로 통일 (축소 없음)
 const MOBILE_ZOOM = 0.65; // 1보다 작을수록 더 넓은 맵 범위가 화면에 보임 (기존 0.55에서 살짝 확대)
 const MAX_ENEMIES = isMobileLayout ? 150 : 200; // 동시 생존 개체수 상한 (렉 방지용 성능 상한, 몹 리젠 시스템 재설계 시 재확정한 값)
@@ -1890,7 +1900,10 @@ function renderCharSelect() {
   const row = document.getElementById('charSelectRow');
   if (!row) return;
   const label = document.getElementById('charSelectLabel');
-  if (label) label.textContent = selectedCharacter ? '게임 시작 버튼을 눌러주세요.' : '캐릭터를 선택해주세요!';
+  if (label) {
+    label.textContent = selectedCharacter ? '게임 시작 버튼을 눌러주세요.' : '캐릭터를 선택해주세요!';
+    if (selectedCharacter) label.classList.remove('error'); // 캐릭터를 고르면 경고색 해제
+  }
   row.innerHTML = CHARACTER_POOL.map(c => `
     <div class="charOption${c.key === selectedCharacter ? ' selected' : ''}" data-key="${c.key}">
       <img src="${c.img().src}" alt="${c.name}" />
@@ -2097,6 +2110,7 @@ function spawnEliteEnemy() {
     variant: 'bear', // 꾸대표
     throwTimer: rand(1.5, 2.5),    // 스폰 후 얼마 뒤 첫 곰 탈 던지기 공격
     throwState: 'chase',           // chase(추격) -> windup(제자리 정지, 던지기 예고) -> chase
+    freezeTimer: 0,                // 플레이어와 충돌하면 2초로 설정되어 그동안 제자리에 얼어붙음
     throwWindupTimer: 0,
   });
   floatingTexts.push({
@@ -2802,15 +2816,17 @@ function update(dt) {
       spd = e.generalState === 'chase' ? (e.slowTimer > 0 ? chaseSpd * (e.slowFactor || 1) : chaseSpd) : 0;
     } else if (e.variant === 'bear') {
       // 꾸대표: 플레이어 이동속도의 1.15배로 추격하되, 곰 탈 던지기 직전엔 제자리에 멈춰서
-      // 던진다는 걸 예고 - 그 틈에 플레이어가 움직여서 피할 여지를 준다
+      // 던진다는 걸 예고 - 그 틈에 플레이어가 움직여서 피할 여지를 준다.
+      // 충돌 직후에도 freezeTimer 동안 제자리에 얼어붙어서 거리를 벌릴 틈을 준다 (throwState보다 우선)
       const chaseSpd = player.speed * 1.15;
-      spd = e.throwState === 'windup' ? 0 : (e.slowTimer > 0 ? chaseSpd * (e.slowFactor || 1) : chaseSpd);
+      spd = (e.freezeTimer > 0 || e.throwState === 'windup') ? 0 : (e.slowTimer > 0 ? chaseSpd * (e.slowFactor || 1) : chaseSpd);
     }
     e.x += Math.cos(a) * spd * dt;
     e.y += Math.sin(a) * spd * dt;
     e.facing = Math.cos(a) >= 0 ? 1 : -1;
     e.facingUp = Math.sin(a) < 0;
     if (e.slowTimer > 0) e.slowTimer -= dt;
+    if (e.freezeTimer > 0) e.freezeTimer -= dt;
     if (e.bleedTimer > 0) {
       e.hp -= (e.bleedDps || 0) * dt;
       e.bleedTimer -= dt;
@@ -2876,6 +2892,9 @@ function update(dt) {
         spawnParticles(player.x, player.y, getPlayerThemeColor(), 6);
         spawnDamageNumber(player.x, player.y, dmg, 'player');
       }
+      // 꾸대표: 부딪히면 그 자리에서 2초간 얼어붙어서, 이동속도가 더 빠른 꾸대표한테서
+      // 플레이어가 실제로 거리를 벌릴 틈을 준다 (안 그러면 한 번 붙잡히면 계속 붙어서 도망 못 감)
+      if (e.variant === 'bear') e.freezeTimer = 2;
     }
 
     // 백제장군: 사거리 안에 들어오면 멈춰서(진동 예비동작 1초) 플레이어가 있는 방향으로 칼을 휘두르는 공격
@@ -5128,9 +5147,8 @@ document.getElementById('closeNoticeBtn').onclick = () => {
 let freeboardPosts = [];
 let freeboardDetailIndex = -1;
 
-// 운영자만 아는 코드 - 게시글 등록 시 이걸 입력하면 운영자 배지가 붙음 (Firestore 규칙에서도 동일 코드로 검증)
-const FREEBOARD_ADMIN_CODE = 'qorwpdjxor';
-
+// 운영자 코드는 클라이언트에 원문으로 두지 않는다 - 입력값을 해시해서 Firestore에 보내고,
+// 실제로 맞는지는 서버(보안 규칙)만 판단한다. 틀리면 쓰기 자체가 거부되는 걸로 결과를 안다.
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -5246,8 +5264,8 @@ async function submitFreeboardComment() {
   const message = input.value.trim();
   const code = codeInput.value.trim();
 
-  if (code !== FREEBOARD_ADMIN_CODE) {
-    errorEl.textContent = '운영자 코드가 일치하지 않아 댓글을 작성할 수 없어요.';
+  if (!code) {
+    errorEl.textContent = '운영자 코드를 입력해주세요.';
     return;
   }
   if (!message) {
@@ -5263,14 +5281,18 @@ async function submitFreeboardComment() {
   const btn = document.getElementById('freeboardCommentSubmitBtn');
   btn.disabled = true;
   btn.textContent = '등록 중...';
-  // 운영자 코드 원문 대신 해시를 저장 - 게시판 read 권한이 전체 공개라, 평문을 그대로 저장하면
-  // 누구나 글을 읽어서 운영자 코드를 알아낼 수 있음(비밀번호 필드와 동일한 이유로 해시 사용)
+  // 운영자 코드 원문은 여기서 해시로만 바뀌고, 실제로 맞는지는 Firestore 규칙이 판단한다
+  // (코드가 틀리면 쓰기 자체가 permission-denied로 거부됨 - 클라이언트엔 정답을 두지 않는다)
   const adminCodeHash = await hashPassword(code);
-  const ok = window.fbSubmitComment ? await window.fbSubmitComment(p.id, message.slice(0, 200), adminCodeHash) : false;
+  const result = window.fbSubmitComment ? await window.fbSubmitComment(p.id, message.slice(0, 200), adminCodeHash) : 'error';
   btn.disabled = false;
   btn.textContent = '댓글 등록';
-  if (!ok) {
-    errorEl.textContent = '등록 실패 (네트워크/설정을 확인해주세요)';
+  if (result === 'denied') {
+    errorEl.textContent = '운영자 코드가 일치하지 않아 댓글을 작성할 수 없어요.';
+    return;
+  }
+  if (result !== 'ok') {
+    errorEl.textContent = '등록 실패 (네트워크 상태를 확인해주세요)';
     return;
   }
   input.value = '';
@@ -5405,8 +5427,6 @@ async function submitFreeboardPost() {
     return;
   }
   const adminCodeRaw = adminCodeInput.value.trim();
-  const isAdmin = adminCodeRaw !== '' && adminCodeRaw === FREEBOARD_ADMIN_CODE;
-  const adminCode = isAdmin ? adminCodeRaw : ''; // 코드가 틀렸으면 그냥 일반 글로 등록 (에러 안 띄우고 조용히 무시)
   if (containsProfanity(nick) || containsProfanity(title) || containsProfanity(msg)) {
     errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
@@ -5416,11 +5436,22 @@ async function submitFreeboardPost() {
   btn.disabled = true;
   btn.textContent = '등록 중...';
   const passwordHash = await hashPassword(pw);
-  const ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin, adminCode }) : false;
+  let ok;
+  if (adminCodeRaw) {
+    // 운영자 코드가 맞는지는 클라이언트에서 미리 알 수 없다(원문을 안 두니까) - 일단 운영자로
+    // 시도해보고, 코드가 틀려서 거부되면(denied) 조용히 일반 글로 재시도한다 (기존과 동일한 UX)
+    const adminCodeHash = await hashPassword(adminCodeRaw);
+    const first = await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin: true, adminCodeHash });
+    ok = first === 'ok' ? 'ok' : (first === 'denied'
+      ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin: false, adminCodeHash: '' })
+      : first);
+  } else {
+    ok = window.fbSubmitPost ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin: false, adminCodeHash: '' }) : 'error';
+  }
   btn.disabled = false;
   btn.textContent = '등록';
-  if (!ok) {
-    errorEl.textContent = '등록 실패 (네트워크/설정을 확인해주세요)';
+  if (ok !== 'ok') {
+    errorEl.textContent = '등록 실패 (네트워크 상태를 확인해주세요)';
     return;
   }
   titleInput.value = '';
@@ -5523,7 +5554,10 @@ document.getElementById('closeAdminBtn').onclick = () => {
 };
 
 document.getElementById('startBtn').onclick = () => {
-  if (!selectedCharacter) return; // 캐릭터를 고르기 전에는 시작 불가
+  if (!selectedCharacter) {
+    document.getElementById('charSelectLabel').classList.add('error'); // 안 고르고 누르면 안내 문구를 빨갛게
+    return;
+  }
   ensureAudioCtx(); startBgm(); decodeCompanionVoices(); decodeSfx(); initGame();
   // 선택한 캐릭터 음성 재생 (첫 실행 시엔 위 디코딩이 비동기라 살짝 기다렸다가 재생)
   setTimeout(() => playCompanionVoice(selectedCharacter), 150);
@@ -5719,16 +5753,16 @@ window.addEventListener('load', () => {
         message: entry.message,
         passwordHash: entry.passwordHash,
         isAdmin: !!entry.isAdmin,
-        adminCode: entry.adminCode || '',
+        adminCodeHash: entry.adminCodeHash || '',
         deleted: false,
         views: 0,
         likes: 0,
         createdAt: serverTimestamp()
       });
-      return true;
+      return 'ok';
     } catch (e) {
       console.error("게시글 등록 실패:", e);
-      return false;
+      return e.code === 'permission-denied' ? 'denied' : 'error';
     }
   };
   window.fbLoadPosts = async function () {
@@ -5798,10 +5832,11 @@ window.addEventListener('load', () => {
         adminCodeHash,
         createdAt: serverTimestamp(),
       });
-      return true;
+      return 'ok';
     } catch (e) {
       console.error("댓글 등록 실패:", e);
-      return false;
+      // 운영자 코드 해시가 규칙과 안 맞으면 permission-denied로 거부됨 - 이걸로 "코드 틀림"을 판별
+      return e.code === 'permission-denied' ? 'denied' : 'error';
     }
   };
   window.fbLoadComments = async function (postId) {
