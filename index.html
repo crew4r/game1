@@ -195,6 +195,17 @@
   .difficultyBtn.hard { background: transparent; color: #ff5252; border-color: rgba(255,82,82,0.5); }
   .difficultyBtn.easy.active { border-color: #69f0ae; }
   .difficultyBtn.hard.active { border-color: #ff5252; }
+  #modeRow { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; }
+  .difficultyBtn.survival { background: transparent; color: #ffd54f; border-color: rgba(255,213,79,0.5); }
+  .difficultyBtn.bossrush { background: transparent; color: #4fc3f7; border-color: rgba(79,195,247,0.5); position: relative; }
+  .betaBadge {
+    position: absolute; top: -7px; right: -7px;
+    font-size: 9px; font-weight: bold; color: #fff;
+    background: #ff1744; padding: 1px 5px; border-radius: 8px;
+    line-height: 1.4; white-space: nowrap;
+  }
+  .difficultyBtn.survival.active { background: #ffd54f; border-color: #ffd54f; color: #1a1a26; }
+  .difficultyBtn.bossrush.active { background: #4fc3f7; border-color: #4fc3f7; color: #1a1a26; }
   .difficultyPointer {
     position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
     font-size: 15px; line-height: 1; margin-top: 8px; white-space: nowrap;
@@ -308,6 +319,8 @@
     border-radius: 6px; cursor: pointer;
   }
   .lbTabBtn.active { background: #ffd54f; color: #1a1a26; border-color: #ffd54f; }
+  .lbTabBtn[data-mode="survival"].active { background: #ffd54f; border-color: #ffd54f; }
+  .lbTabBtn[data-mode="bossrush"].active { background: #4fc3f7; border-color: #4fc3f7; }
   #closeLeaderboardBtn, #closeNoticeBtn, #closeFreeboardBtn, #closeSettingsBtn {
     margin-top: 16px; padding: 8px 24px; font-size: 14px;
     background: #ffd54f; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
@@ -682,7 +695,11 @@
   </div>
   <div id="leaderboardWrap">
     <h3>🏆 리더보드</h3>
-    <div class="lbTabs">
+    <div class="lbTabs" id="leaderboardWrapModeTabs">
+      <button class="lbTabBtn" data-mode="survival">🏃 서바이벌</button>
+      <button class="lbTabBtn" data-mode="bossrush">👑 보스러시</button>
+    </div>
+    <div class="lbTabs" id="leaderboardWrapPlatformTabs">
       <button class="lbTabBtn" data-platform="pc">PC</button>
       <button class="lbTabBtn" data-platform="mobile">모바일</button>
     </div>
@@ -697,7 +714,7 @@
   </div>
 </div>
 
-<div id="buildVersion">v0.9.5</div>
+<div id="buildVersion">v0.9.6</div>
 <div id="fpsCounter"></div>
 <div id="globalStats"><span class="statLine">🎮 누적 플레이 <span id="totalPlaysText">-</span>회</span><span class="statLine">📅 오늘 플레이 <span id="dailyPlaysText">-</span>회</span></div>
 
@@ -710,6 +727,10 @@
   <div id="charSelectWrap">
     <div id="charSelectLabel">캐릭터 선택</div>
     <div id="charSelectRow"></div>
+  </div>
+  <div id="modeRow">
+    <button id="survivalModeBtn" class="difficultyBtn survival active">🏃 서바이벌</button>
+    <button id="bossRushModeBtn" class="difficultyBtn bossrush">👑 보스러시<span class="betaBadge">Beta</span></button>
   </div>
   <div id="difficultyRow">
     <div class="difficultyCol">
@@ -748,6 +769,10 @@
 
 <div id="startLeaderboardModal">
   <h2>🏆 리더보드</h2>
+  <div class="lbTabs" id="startLbModeTabs">
+    <button class="lbTabBtn" data-mode="survival">🏃 서바이벌</button>
+    <button class="lbTabBtn" data-mode="bossrush">👑 보스러시</button>
+  </div>
   <div class="lbTabs" id="startLbTabs">
     <button class="lbTabBtn" data-platform="pc">PC</button>
     <button class="lbTabBtn" data-platform="mobile">모바일</button>
@@ -763,7 +788,8 @@
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">리더보드 개편 및 초기화 안내</span></button>
-    <button class="noticeVersionBtn" data-version="hotfix260826"><span class="titleGroup">핫픽스 안내 (260826)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></span></button>
+    <button class="noticeVersionBtn" data-version="0.9.6"><span class="titleGroup">0.9.6 업데이트<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></span><span class="sub">보스전 전용 하드코어 모드 베타버전 오픈!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260826">핫픽스 안내 (260826)</button>
     <button class="noticeVersionBtn" data-version="0.9.5">0.9.5 업데이트<span class="sub">GLOW UP! 진화 시스템 추가!</span></button>
     <button class="noticeVersionBtn" data-version="0.9.4">0.9.4 업데이트<span class="sub">몹 리젠 방식 전면 개편 및 엘리트몹 추가</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260824">핫픽스 안내 (260824)</button>
@@ -1911,7 +1937,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---------- 게임 상태 ----------
-let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx, boomerangs;
+let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx, boomerangs, enemyKnives;
 let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
 let carBossEncounterCount, fireTrail;
 let generalSpawnTimer; // 백제장군(엘리트몹): 경과 시간에 따라 동시 생존 상한이 늘어나며 랜덤 간격으로 계속 등장 (getGeneralMaxCount 참고)
@@ -1931,6 +1957,15 @@ const POST_BOSS_GRACE_DURATION = 18; // 보스(꾸대표/피디니무/연수아�
 // 처치하면 쿨다운 뒤 다음 순번이 등장. 한 바퀴를 다 돌면 처음(꾸대표)부터 다시 시작하며 계속 반복된다.
 const BOSS_CYCLE = ['bear', 'pd', 'car'];
 let bossCycleIndex, bossCycleTimer, bossLoopCount;
+
+// ---------- 보스러시 모드 ----------
+// 일반 백제자객은 서바이벌과 동일하게 계속 리젠(growthTime 기준)되고, 그 위에 보스만 고정 타이머로
+// 몰아서 등장시킨다. 첫 보스(큰 백제자객)는 시작 30초 후, 이후 보스 처치 10초 뒤 다음 보스 -
+// 백제장군 -> 꾸대표 -> 피디니무 -> 연수아저씨 순서로 무한 반복.
+const RUSH_BOSS_CYCLE = ['general', 'bear', 'pd', 'car'];
+let rushBossStage; // -1 = 인트로(큰 백제자객) 대기, 0~3 = RUSH_BOSS_CYCLE 인덱스
+let rushBossTimer;
+let currentRunMode = 'survival'; // 이번 판 시작 시점의 gameMode 스냅샷 (게임오버 화면에서 리더보드 컬렉션 결정용)
 let pdArenaActive, pdArenaCenter, pdArenaRadius, pdArenaWalls;
 let pdEncounterCount, pdIsFirstEncounter;
 let pdArenaRadiusStart, pdArenaRadiusMin, pdArenaShrinkDuration;
@@ -1992,6 +2027,9 @@ let currentRunDifficulty = 'hard'; // 이번 판이 시작될 때의 난이도�
 function initGame() {
   paused = false;
   currentRunDifficulty = selectedDifficulty;
+  currentRunMode = gameMode;
+  rushBossStage = -1;
+  rushBossTimer = 10; // 보스러시 첫 보스(큰 백제자객)까지 10초 (이후 보스 간 공백과 동일하게 맞춤)
   document.getElementById('pauseOverlay').style.display = 'none';
   document.getElementById('pauseBtn').textContent = '⏸️';
   // 게임오버/공지사항/게시판 등에서 disableTouchZone()으로 꺼둔 전체화면 터치 차단막을
@@ -2023,6 +2061,7 @@ function initGame() {
   chopstickFx = [];
   aoeFx = [];
   boomerangs = [];
+  enemyKnives = [];
   triggeredCompanions = new Set();
   eliteThrows = [];
   generalSlashes = [];
@@ -2105,6 +2144,23 @@ function setDifficulty(diff) {
 document.getElementById('easyModeBtn').onclick = () => setDifficulty('easy');
 document.getElementById('hardModeBtn').onclick = () => setDifficulty('hard');
 
+// ---------- 게임 모드 (서바이벌 / 보스러시) ----------
+let gameMode = 'survival'; // 'survival' | 'bossrush'
+function setGameMode(mode) {
+  gameMode = mode;
+  document.getElementById('survivalModeBtn').classList.toggle('active', mode === 'survival');
+  document.getElementById('bossRushModeBtn').classList.toggle('active', mode === 'bossrush');
+  document.getElementById('startBtn').style.background = mode === 'bossrush' ? '#4fc3f7' : '#ffd54f';
+  // 보스러시는 이미 그 자체로 하드 난이도 성격이라 EASY/HARD 선택을 없애고 항상 HARD로 고정
+  // (difficultyRow 전체가 아니라 EASY/HARD 컬럼만 숨겨야 그 사이에 있는 게임시작 버튼이 안 사라짐)
+  document.querySelectorAll('#difficultyRow .difficultyCol').forEach(el => {
+    el.style.display = mode === 'bossrush' ? 'none' : '';
+  });
+  if (mode === 'bossrush') setDifficulty('hard');
+}
+document.getElementById('survivalModeBtn').onclick = () => setGameMode('survival');
+document.getElementById('bossRushModeBtn').onclick = () => setGameMode('bossrush');
+
 function enemyStatsForTime(t) {
   const tier = Math.min(Math.floor(t / 30), 6);
   let baseSpeed = 60 + tier * 6;
@@ -2151,7 +2207,40 @@ function spawnEnemy() {
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
   const s = enemyStatsForTime(growthTime);
-  enemies.push({ x, y, ...s, maxHp: s.hp });
+  const enemy = { x, y, ...s, maxHp: s.hp };
+  // 보스러시: 스폰되는 백제자객 중 일부만 '엘리트 백제자객'(확대+가속+근접시 칼 투척)으로 만들고,
+  // 나머지는 서바이벌과 완전히 동일한 원래 백제자객 그대로 둔다
+  if (gameMode === 'bossrush' && Math.random() < 0.1) {
+    enemy.r *= 1.4;
+    enemy.speed *= 1.15;
+    enemy.isBossRushMob = true;
+    enemy.knifeTimer = rand(0.8, 1.8); // 첫 칼던지기까지 개체마다 다른 텀 (동시 투척 방지)
+  }
+  enemies.push(enemy);
+}
+
+// ---------- 보스러시 전용: 큰 백제자객 (인트로 보스, 새 아트 없이 기존 백제자객 확대+강화로 대체) ----------
+function spawnBigAssassinBoss() {
+  const angle = rand(0, Math.PI * 2);
+  const zoom = isMobileLayout ? MOBILE_ZOOM : 1;
+  const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 80;
+  const x = player.x + Math.cos(angle) * spawnDist;
+  const y = player.y + Math.sin(angle) * spawnDist;
+  const base = enemyStatsForTime(growthTime);
+  const hp = Math.round(base.hp * 5 * getPlayerPowerMultiplier()); // 첫 보스인 만큼 확실히 위협적이도록, 플레이어 레벨 반영
+  enemies.push({
+    x, y, hp, maxHp: hp,
+    speed: base.speed,
+    dmg: Math.round(base.dmg * 1.8),
+    r: 12 * 1.4, // 일반 몹(12) 대비 40% 크게 - 전용 스프라이트 없이 같은 백제자객 아트를 확대해서 그림
+    color: base.color,
+    xp: base.xp * 4,
+    variant: 'bigAssassin',
+  });
+  floatingTexts.push({
+    x, y: y - 30, text: '⚠ 큰 백제자객 출현!',
+    life: 2.2, maxLife: 2.2, size: 15, color: '#ff8a80',
+  });
 }
 
 function spawnEliteEnemy() {
@@ -2817,7 +2906,8 @@ function update(dt) {
     const MOBILE_SPAWN_INTERVAL_MULT = 1.15; // 모바일은 스폰 간격을 15% 더 여유롭게
     const MOBILE_BURST_MULT = 0.85;          // 모바일은 버스트량도 15% 낮게
     const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1)
-      * (DIFFICULTY_SETTINGS[selectedDifficulty] || DIFFICULTY_SETTINGS.hard).spawnIntervalMult; // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+      * (DIFFICULTY_SETTINGS[selectedDifficulty] || DIFFICULTY_SETTINGS.hard).spawnIntervalMult // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
+      * (gameMode === 'bossrush' ? 0.85 : 1); // 보스러시는 백제자객 등장 빈도를 조금 더 높임
     const spawnInterval = spawnIntervalBase * (1 + (1 - graceProgress) * 1.2); // 유예 시작 시 간격 최대 2.2배로 완화
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
@@ -2847,7 +2937,7 @@ function update(dt) {
     // 보스(꾸대표/피디니무/연수아저씨 듀오)가 진행 중일 땐 화면이 과도하게 복잡해지지 않도록
     // 새로 스폰하지 않는다 (이미 나와 있는 백제장군은 유지).
     const generalMax = getGeneralMaxCount();
-    if (generalMax > 0 && !enemies.some(e => e.isBoss)) {
+    if (gameMode !== 'bossrush' && generalMax > 0 && !enemies.some(e => e.isBoss)) {
       generalSpawnTimer -= dt;
       if (generalSpawnTimer <= 0) {
         generalSpawnTimer = rand(15, 40); // 다음 등장까지 완전 랜덤 (임시값, 밸런스 보면서 조정)
@@ -2859,13 +2949,56 @@ function update(dt) {
     // 보스 순환 스폰: 꾸대표 -> 피디니무 -> 연수아저씨 듀오 순서로, 한 번에 하나만 등장.
     // 처치하면 advanceBossCycle()이 쿨다운을 걸고 다음 순번으로 넘기며, 한 바퀴를 다 돌면
     // 다시 꾸대표부터 무한 반복 (보스별 강해지는 정도는 각자의 조우 횟수 카운터가 알아서 처리)
-    if (!enemies.some(e => e.isBoss)) {
+    if (gameMode !== 'bossrush' && !enemies.some(e => e.isBoss)) {
       bossCycleTimer -= dt;
       if (bossCycleTimer <= 0) {
         const variant = BOSS_CYCLE[bossCycleIndex];
         if (variant === 'bear') spawnEliteEnemy();
         else if (variant === 'pd') triggerPDArena();
         else spawnCarBoss();
+      }
+    }
+
+    // 보스러시: 일반 백제자객 리젠은 서바이벌과 동일하게 두고, 보스만 고정 타이머로 따로 몰아서 등장
+    // (큰 백제자객 -> 백제장군 -> 꾸대표 -> 피디니무 -> 연수아저씨 -> 백제장군 ... 무한 반복)
+    // 이제 이전 보스를 안 잡아도 10초마다 다음 순번이 그냥 등장한다 - 한창 싸우는 중에 다른 보스가
+    // 끼어들 수 있게 해서 긴장감을 올림 (단, 아래 예외 2개는 여전히 겹치지 않게 막음)
+    if (gameMode === 'bossrush') {
+      rushBossTimer -= dt;
+      if (rushBossTimer <= 0) {
+        const variant = rushBossStage < 0 ? 'bigAssassin' : RUSH_BOSS_CYCLE[rushBossStage];
+        const aliveRushBosses = enemies.filter(e => e.isRushBoss).length;
+        // 피디니무는 등장 시 아레나를 위해 다른 적을 전부 wipe하는 특성상 혼자일 때만 등장시켜야
+        // 한창 싸우던 다른 보스가 아무 예고 없이 증발하지 않는다. 동시 생존 보스 수도 3마리로 상한.
+        const pdBlocked = variant === 'pd' && aliveRushBosses > 0;
+        if (pdBlocked || aliveRushBosses >= 3) {
+          rushBossTimer = 1; // 잠시 후 재시도
+        } else {
+          if (variant === 'bigAssassin') spawnBigAssassinBoss();
+          else if (variant === 'general') spawnGeneralEnemy();
+          else if (variant === 'bear') spawnEliteEnemy();
+          else if (variant === 'pd') triggerPDArena();
+          else spawnCarBoss();
+
+          // 연수아저씨(car)는 spawnCarBoss() 안에서 미니카를 뒤이어 push하므로, 배열 마지막 원소가
+          // 아니라 variant로 정확히 찾아야 큰 차 본체를 태깅한다 (다른 4종도 variant가 전부 유일)
+          const spawned = enemies.find(e => e.variant === variant && !e.isRushBoss);
+          if (spawned) {
+            spawned.isRushBoss = true;
+            if (variant === 'general') {
+              // 백제장군은 평소 앰비언트 잡몹 수준(시간기반 1.5배)이라 보스 슬롯으로 쓰기엔 너무 약함 -
+              // 레벨 스케일링에 더해 고정 배율까지 얹어서 확실한 보스급으로 강화
+              const mult = getPlayerPowerMultiplier();
+              spawned.hp = Math.round(spawned.hp * 3 * mult);
+              spawned.maxHp = spawned.hp;
+              spawned.dmg = Math.round(spawned.dmg * 1.6);
+              spawned.r *= 1.4; // 서바이벌 백제장군과 크기로도 구분되도록 확대
+            }
+          }
+          // 처치 여부와 무관하게 스폰 시점 기준으로 다음 순번을 예약 (겹쳐 있어도 계속 새 보스가 나옴)
+          rushBossStage = rushBossStage < 0 ? 0 : (rushBossStage + 1) % RUSH_BOSS_CYCLE.length;
+          rushBossTimer = 10;
+        }
       }
     }
   }
@@ -2915,6 +3048,24 @@ function update(dt) {
     }
     if (e.knockbackCd > 0) e.knockbackCd -= dt;
     if (e.attackPoseTimer > 0) e.attackPoseTimer -= dt; // 백제장군: 공격 포즈 스프라이트 노출 시간
+
+    if (e.isBossRushMob) {
+      // 보스러시 전용 백제자객: 플레이어 근처까지 붙으면 자기 자신을 중심으로 상하좌우 4방향 칼 투척
+      e.knifeTimer -= dt;
+      if (e.knifeTimer <= 0 && dist(e, player) < 220) {
+        e.knifeTimer = rand(2, 3.2);
+        for (let k = 0; k < 4; k++) {
+          const ka = (Math.PI / 2) * k; // 0=우, 90=하, 180=좌, 270=상
+          enemyKnives.push({
+            x: e.x, y: e.y,
+            vx: Math.cos(ka) * 400, vy: Math.sin(ka) * 400,
+            dmg: Math.round(e.dmg * 0.6),
+            r: 8, life: 1.2, spin: 0,
+          });
+        }
+        spawnParticles(e.x, e.y, '#ffab91', 6);
+      }
+    }
 
     if (!e.isElite) {
       // 일반 몹끼리는 완전히 같은 좌표에 쌓이지 않도록 실제로 몸이 겹친 이웃한테서만
@@ -3054,6 +3205,27 @@ function update(dt) {
     }
   }
   eliteThrows = eliteThrows.filter(th => th.life > 0 && !th.hit);
+
+  // 보스러시 전용 백제자객이 던진 칼 처리
+  for (const kn of enemyKnives) {
+    kn.x += kn.vx * dt;
+    kn.y += kn.vy * dt;
+    kn.life -= dt;
+    kn.spin += dt * 16;
+    if (!kn.hit && dist(kn, player) < kn.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
+      if (consumePlayerShield(player.x, player.y)) {
+        player.invuln = 0.5;
+      } else {
+        const dmg = kn.dmg;
+        player.hp -= dmg;
+        player.invuln = 0.5;
+        spawnParticles(player.x, player.y, getPlayerThemeColor(), 6);
+        spawnDamageNumber(player.x, player.y, dmg, 'player');
+      }
+      kn.hit = true;
+    }
+  }
+  enemyKnives = enemyKnives.filter(kn => kn.life > 0 && !kn.hit);
 
   // 백제장군이 휘두른 검기 처리 (칼 모션보다 조금 더 먼 사거리까지 날아감)
   for (const s of generalSlashes) {
@@ -3239,7 +3411,7 @@ function update(dt) {
       const p = Math.min(1, bm.t / bm.outDuration);
       bm.x = bm.startX + (bm.farX - bm.startX) * p;
       bm.y = bm.startY + (bm.farY - bm.startY) * p;
-      if (p >= 1) { bm.phase = 'return'; bm.t = 0; bm.hitSet = new Set(); } // 복귀 구간에서 같은 적을 다시 맞힐 수 있게 리셋
+      if (p >= 1) { bm.phase = 'return'; bm.t = 0; } // hitSet은 유지 - 복귀 구간에서도 같은 적을 또 맞히지 않도록(적 하나당 이 부메랑에 한 번만 피격)
     } else {
       const p = Math.min(1, bm.t / bm.returnDuration);
       // 착점(farX,farY)에서 현재 플레이어 위치로, 옆으로 부푼 제어점을 거쳐 곡선으로 이동 - 타원 절반을 그리는 궤적
@@ -3254,7 +3426,7 @@ function update(dt) {
       if (p >= 1) bm.returned = true;
     }
     if (!bm.returned) {
-      // 관통 제한 없음 - 지나가는 경로에 걸리는 적은 전부 맞음 (단, 왕복 중 같은 구간에서 같은 적을 두 번 맞히진 않음)
+      // 관통 제한 없음 - 지나가는 경로에 걸리는 적은 전부 맞음 (단, 적 하나당 이 부메랑에는 왕복 통틀어 한 번만 맞음)
       const nearby = queryEnemiesNear(bm.x, bm.y, BOOMERANG_HIT_R + 20);
       for (const e of nearby) {
         if (bm.hitSet.has(e)) continue;
@@ -3283,7 +3455,7 @@ function update(dt) {
         b.hitSet.add(e);
         b.pierce--;
         // 진화 버프(15초): 우이가 백제자객을 원샷원킬, 단 발사체 하나당 직격+스플래시 합산 최대 2번까지
-        if (evolutionActiveTimer > 0 && b.evoKills < 2 && !e.isElite && !e.isGeneral) {
+        if (evolutionActiveTimer > 0 && b.evoKills < 2 && !e.isElite && !e.isGeneral && !e.isRushBoss) {
           e.hp = 0;
           b.evoKills++;
         }
@@ -3301,7 +3473,7 @@ function update(dt) {
             if (dist(e, se) < SPLASH_RADIUS) {
               se.hp -= splashDmg;
               b.hitSet.add(se);
-              if (evolutionActiveTimer > 0 && b.evoKills < 2 && !se.isElite && !se.isGeneral) {
+              if (evolutionActiveTimer > 0 && b.evoKills < 2 && !se.isElite && !se.isGeneral && !se.isRushBoss) {
                 se.hp = 0;
                 b.evoKills++;
               }
@@ -3359,14 +3531,21 @@ function update(dt) {
         }
         if (evoGauge >= evolutionGaugeMax) triggerEvolution();
       }
+      if (e.isRushBoss) {
+        // 보스러시: 다음 순번 예약/타이머는 이제 스폰 시점에 처리(겹쳐 등장 가능하게) - 처치 시엔 유예시간만 부여
+        postBossGraceTimer = POST_BOSS_GRACE_DURATION;
+      }
       if (e.isElite) {
         if (e.isBoss) advanceBossCycle(); // 꾸대표/피디니무/연수아저씨 처치 -> 순번 이동 + 쿨다운 시작
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
         spawnParticles(e.x, e.y, '#ffd54f', 14);
         spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
+        // 보스러시는 이 세 보스가 10초 간격으로 무한 반복되므로, 서바이벌과 같은 3장을 그대로 주면
+        // 몇 분 만에 카드가 과도하게 쌓여 무기가 급격히 강해짐 - 보스러시에서는 1장으로 축소
+        const bossCardReward = gameMode === 'bossrush' ? 1 : 3;
         if (e.variant === 'pd') {
           endPDArena(true); // 아레나 종료 + 평가/보상 처리(내부에서 유예시간/플로팅텍스트/보너스 카드 지급)
-          for (let i2 = 0; i2 < 3; i2++) grantBonusSkillCard(); // 보스 처치 기본 보상 3장 (등급 보너스는 별도 추가)
+          for (let i2 = 0; i2 < bossCardReward; i2++) grantBonusSkillCard();
         } else if (e.variant === 'miniCar') {
           // 작은 차(몰이꾼)는 큰 차의 서브 개체라 보스 처치 보상 대상에서 제외
         } else {
@@ -3374,10 +3553,10 @@ function update(dt) {
           postBossGraceTimer = POST_BOSS_GRACE_DURATION;
           spawnTimer = Math.max(spawnTimer, 1.5);
           floatingTexts.push({
-            x: e.x, y: e.y - 20, text: '보스 처치! 스킬 카드 3장 획득',
+            x: e.x, y: e.y - 20, text: `보스 처치! 스킬 카드 ${bossCardReward}장 획득`,
             life: 2, maxLife: 2, size: 14, color: '#b26fe0',
           });
-          for (let i2 = 0; i2 < 3; i2++) grantBonusSkillCard();
+          for (let i2 = 0; i2 < bossCardReward; i2++) grantBonusSkillCard();
         }
       } else {
         spawnParticles(e.x, e.y, e.color, 10);
@@ -3972,7 +4151,7 @@ function applyChoice(opt, ignoreCap) {
       case 'cdr': player.cdr = Math.min(cap(0.5), (player.cdr || 0) + 0.08); break;
       case 'dmgup': player.dmgMult = Math.min(cap(2.0), (player.dmgMult || 1) + 0.1); break;
       case 'luck': player.luck = Math.min(cap(2.5), (player.luck || 1) + 0.2); break;
-      case 'regen': player.hpRegen = Math.min(cap(5), (player.hpRegen || 0) + 1); break;
+      case 'regen': player.hpRegen = Math.min(cap(5), (player.hpRegen || 0) + (gameMode === 'bossrush' ? 1 : 0.5)); break; // 서바이벌은 픽업당 회복 증가량을 0.5로 완화
     }
   } else if (opt.type === 'special' && opt.key === 'firebreath') {
     // 불뿜기 진화: 별도 카드지만 효과는 보유 중인 우이에 적용 (스플래시 데미지 부여, 이모지는 기존 그대로 유지)
@@ -4653,10 +4832,27 @@ function render() {
       ctx.lineWidth = 2;
       ctx.stroke();
     } else if (isGeneral) {
+      if (e.isRushBoss) {
+        // 보스러시 백제장군: 서바이벌과 구분되는 붉은 펄스 오라
+        const pulse2 = 0.75 + Math.sin(gameTime * 4) * 0.25;
+        ctx.beginPath();
+        ctx.arc(ex, ey, eh * 0.55 * pulse2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,61,0,0.22)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,61,0,0.55)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       // 백제장군: 보스급 오라보다 옅은 동색 그림자 (엘리트 티어보다 낮음을 시각적으로 구분)
       ctx.beginPath();
       ctx.ellipse(ex, ey + eh * 0.32, e.r * 0.85, e.r * 0.36, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fill();
+    } else if (e.isBossRushMob) {
+      // 보스러시 전용 백제자객: 서바이벌 일반 몹과 구분되는 붉은 접지 오라
+      ctx.beginPath();
+      ctx.ellipse(ex, ey + eh * 0.32, e.r * 0.8, e.r * 0.34, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,61,0,0.4)';
       ctx.fill();
     } else if (!isHighDensity) {
       // 일반 몹 접지 그림자. 개체당 비용은 작지만, 몹이 아주 많이 뭉쳐서 화면에
@@ -4834,6 +5030,18 @@ function render() {
     }
   }
 
+  // 보스러시 전용 백제자객이 던진 칼
+  for (const kn of enemyKnives) {
+    ctx.save();
+    ctx.translate(kn.x + ox, kn.y + oy);
+    ctx.rotate(kn.spin);
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🔪', 0, 0);
+    ctx.restore();
+  }
+
   // 엘리트몹 곰 탈 던지기 투사체 - 다른 모든 요소보다 위(최상단)에 그려지도록 마지막에 렌더링
   for (const th of eliteThrows) {
     const sx = th.x + ox, sy = th.y + oy;
@@ -4923,8 +5131,9 @@ function endGame() {
 }
 
 // ---------- 리더보드 (Firestore 연동, PC/모바일 컬렉션 분리) ----------
-function leaderboardCollectionFor(platform) {
-  return platform === 'mobile' ? 'leaderboard_mobile' : 'leaderboard';
+function leaderboardCollectionFor(platform, mode) {
+  const base = mode === 'bossrush' ? 'bossrush_leaderboard' : 'leaderboard';
+  return platform === 'mobile' ? `${base}_mobile` : base;
 }
 
 // 마지막으로 리더보드를 열람한 시각(ms) - 이 시각 이후 등록된 기록 옆에 New! 표시.
@@ -4934,14 +5143,14 @@ function lbIsNewEntry(entry) {
   return !!(entry.createdAt && entry.createdAt.toMillis && entry.createdAt.toMillis() > lbNewCutoffMs);
 }
 
-async function renderLeaderboard(highlightEntry, targetId, platform) {
+async function renderLeaderboard(highlightEntry, targetId, platform, mode) {
   const listEl = document.getElementById(targetId || 'leaderboardList');
   listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
   if (!window.fbLoadWeeklyTop) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadWeeklyTop(leaderboardCollectionFor(platform), 20);
+  const list = await window.fbLoadWeeklyTop(leaderboardCollectionFor(platform, mode), 20);
   listEl.innerHTML = '';
   if (!list.length) {
     listEl.innerHTML = '<li style="justify-content:center; color:#666;">이번 주 기록이 아직 없어요</li>';
@@ -4961,7 +5170,7 @@ async function renderLeaderboard(highlightEntry, targetId, platform) {
 }
 
 // 명예의 전당 TOP 3 (역대 최고 기록, 초기화 없이 영구 유지)
-async function renderAllTimeLeaderboard(targetId, platform) {
+async function renderAllTimeLeaderboard(targetId, platform, mode) {
   const listEl = document.getElementById(targetId);
   if (!listEl) return;
   listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
@@ -4969,7 +5178,7 @@ async function renderAllTimeLeaderboard(targetId, platform) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadAllTimeTop(leaderboardCollectionFor(platform), 3);
+  const list = await window.fbLoadAllTimeTop(leaderboardCollectionFor(platform, mode), 3);
   listEl.innerHTML = '';
   if (!list.length) {
     listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
@@ -4986,9 +5195,9 @@ async function renderAllTimeLeaderboard(targetId, platform) {
 }
 
 // 주간 랭킹 + 명예의 전당을 한 번에 갱신
-function refreshLeaderboards(highlightEntry, weeklyTargetId, allTimeTargetId, platform) {
-  renderLeaderboard(highlightEntry, weeklyTargetId, platform);
-  renderAllTimeLeaderboard(allTimeTargetId, platform);
+function refreshLeaderboards(highlightEntry, weeklyTargetId, allTimeTargetId, platform, mode) {
+  renderLeaderboard(highlightEntry, weeklyTargetId, platform, mode);
+  renderAllTimeLeaderboard(allTimeTargetId, platform, mode);
 }
 
 function setActiveLbTab(tabsContainer, platform) {
@@ -4996,24 +5205,51 @@ function setActiveLbTab(tabsContainer, platform) {
     b.classList.toggle('active', b.dataset.platform === platform);
   });
 }
+function setActiveLbModeTab(tabsContainer, mode) {
+  tabsContainer.querySelectorAll('.lbTabBtn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+}
 
-// 게임오버 화면 리더보드 탭 (플레이한 기기 기준으로 기본 선택)
-const leaderboardWrapTabs = document.querySelector('#leaderboardWrap .lbTabs');
+// 게임오버 화면 리더보드 탭 (플레이한 기기/모드 기준으로 기본 선택, 서바이벌<->보스러시 전환 가능)
+const leaderboardWrapTabs = document.getElementById('leaderboardWrapPlatformTabs');
+const leaderboardWrapModeTabs = document.getElementById('leaderboardWrapModeTabs');
+let leaderboardWrapMode = 'survival';
 setActiveLbTab(leaderboardWrapTabs, isMobileLayout ? 'mobile' : 'pc');
+setActiveLbModeTab(leaderboardWrapModeTabs, leaderboardWrapMode);
 leaderboardWrapTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
   btn.onclick = () => {
     setActiveLbTab(leaderboardWrapTabs, btn.dataset.platform);
-    refreshLeaderboards(null, 'leaderboardList', 'allTimeList', btn.dataset.platform);
+    refreshLeaderboards(null, 'leaderboardList', 'allTimeList', btn.dataset.platform, leaderboardWrapMode);
+  };
+});
+leaderboardWrapModeTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
+  btn.onclick = () => {
+    leaderboardWrapMode = btn.dataset.mode;
+    setActiveLbModeTab(leaderboardWrapModeTabs, leaderboardWrapMode);
+    const curPlatform = leaderboardWrapTabs.querySelector('.lbTabBtn.active')?.dataset.platform || (isMobileLayout ? 'mobile' : 'pc');
+    refreshLeaderboards(null, 'leaderboardList', 'allTimeList', curPlatform, leaderboardWrapMode);
   };
 });
 
 // 시작 화면 리더보드 탭
 const startLbTabs = document.getElementById('startLbTabs');
+const startLbModeTabs = document.getElementById('startLbModeTabs');
+let startLbMode = 'survival';
 setActiveLbTab(startLbTabs, isMobileLayout ? 'mobile' : 'pc');
+setActiveLbModeTab(startLbModeTabs, startLbMode);
 startLbTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
   btn.onclick = () => {
     setActiveLbTab(startLbTabs, btn.dataset.platform);
-    refreshLeaderboards(null, 'startLeaderboardList', 'startAllTimeList', btn.dataset.platform);
+    refreshLeaderboards(null, 'startLeaderboardList', 'startAllTimeList', btn.dataset.platform, startLbMode);
+  };
+});
+startLbModeTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
+  btn.onclick = () => {
+    startLbMode = btn.dataset.mode;
+    setActiveLbModeTab(startLbModeTabs, startLbMode);
+    const curPlatform = startLbTabs.querySelector('.lbTabBtn.active')?.dataset.platform || (isMobileLayout ? 'mobile' : 'pc');
+    refreshLeaderboards(null, 'startLeaderboardList', 'startAllTimeList', curPlatform, startLbMode);
   };
 });
 
@@ -5049,20 +5285,22 @@ async function submitScore() {
   btn.textContent = '등록 중...';
   const myPlatform = isMobileLayout ? 'mobile' : 'pc'; // 실제 플레이한 기기 기준으로 해당 컬렉션에 등록
   const entry = { name, score: lastScore, level, kills: killCount, time: Math.floor(gameTime), character: selectedCharacter };
-  const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry, leaderboardCollectionFor(myPlatform)) : false;
+  const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry, leaderboardCollectionFor(myPlatform, currentRunMode)) : false;
   btn.disabled = false;
   btn.textContent = '리더보드 등록';
   document.getElementById('nicknameEntry').style.display = 'none';
   document.getElementById('leaderboardWrap').style.display = 'block';
   setActiveLbTab(leaderboardWrapTabs, myPlatform);
+  leaderboardWrapMode = currentRunMode;
+  setActiveLbModeTab(leaderboardWrapModeTabs, leaderboardWrapMode);
   lbNewCutoffMs = Number(localStorage.getItem('seenLeaderboardAt') || 0);
   if (!ok) {
     document.getElementById('leaderboardList').innerHTML =
       '<li style="justify-content:center; color:#e33;">등록 실패 (네트워크/설정을 확인해주세요)</li>';
     return;
   }
-  await renderLeaderboard(entry, 'leaderboardList', myPlatform);
-  renderAllTimeLeaderboard('allTimeList', myPlatform);
+  await renderLeaderboard(entry, 'leaderboardList', myPlatform, leaderboardWrapMode);
+  renderAllTimeLeaderboard('allTimeList', myPlatform, leaderboardWrapMode);
 }
 document.getElementById('submitScoreBtn').onclick = submitScore;
 document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
@@ -5084,11 +5322,12 @@ document.getElementById('viewLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'flex';
   const defaultPlatform = isMobileLayout ? 'mobile' : 'pc';
   setActiveLbTab(startLbTabs, defaultPlatform);
+  setActiveLbModeTab(startLbModeTabs, startLbMode);
   // 렌더링 직전에 "마지막으로 본 시각"을 고정해둬야 방금 갱신할 값이 아니라 지난번 열람 시각
   // 기준으로 신규 기록(New!)을 판단할 수 있다 (localStorage 갱신은 그 다음에 한다)
   lbNewCutoffMs = Number(localStorage.getItem('seenLeaderboardAt') || 0);
-  renderLeaderboard(null, 'startLeaderboardList', defaultPlatform);
-  renderAllTimeLeaderboard('startAllTimeList', defaultPlatform);
+  renderLeaderboard(null, 'startLeaderboardList', defaultPlatform, startLbMode);
+  renderAllTimeLeaderboard('startAllTimeList', defaultPlatform, startLbMode);
   localStorage.setItem('seenLeaderboardAt', String(Date.now())); // 열람했으니 New! 배지 해제
   document.getElementById('lbNewBadge').style.display = 'none';
 };
@@ -5099,7 +5338,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = 'hotfix260826';
+const LATEST_NOTICE_VERSION = '0.9.6';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -5129,6 +5368,24 @@ async function checkNewBadges() {
 window.addEventListener('load', checkNewBadges);
 
 const NOTICE_CONTENT = {
+  '0.9.6': {
+    title: '보스전 전용 하드코어 모드 베타버전 오픈!',
+    items: [
+      { text: '👿보스전 전용 모드(Beta)가 추가 되었습니다.' },
+      { text: '지금은 굉장히 매운맛이며, 밸런스를 조정 중에 있습니다.' },
+      { gap: true },
+      { text: '👿보스전 전용 리더보드 추가' },
+      { text: '리더보드를 추가하면서 인터페이스를 일부 조정하였습니다.' },
+      { gap: true },
+      { text: '🪃액티브 스킬에 안원(미/리/메/제)잘부메랑이 추가 되었습니다.' },
+      { text: '적을 물리치고 돌아오는 부메랑을 던져보세요.' },
+      { gap: true },
+      { text: '🐟 패시브 스킬에 물회(우동/떡볶이/케이크/어탕)가 추가 되었습니다.' },
+      { text: '초당 회복되는 HP와 함께 더 높은 점수를 달성해 보세요.' },
+      { gap: true },
+      { text: '🫡현재 보스전은 베타테스트 중입니다. 플레이 후 자유게시판에 의견을 남겨주세요.' },
+    ],
+  },
   'hotfix260826': {
     title: '핫픽스 안내 (260826)',
     items: [
