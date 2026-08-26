@@ -1751,6 +1751,7 @@ async function playEvolutionSequence() {
 function triggerEvolution() {
   if (evolutionInProgress) return;
   evolutionInProgress = true;
+  preEvoShieldCount = player.shieldCount; // 버스트 종료 시 이 값으로 복원 (아래서 5개로 덮어쓰기 전에 미리 기록)
   evoGauge = 0;
   evolutionCount++;
   evolutionGaugeMax = EVOLUTION_GAUGE_BASE + evolutionCount * EVOLUTION_GAUGE_STEP;
@@ -1916,6 +1917,7 @@ let evolutionCount; // 이번 판에서 지금까지 진화한 횟수 - evolutio
 let evolutionGaugeMax; // = EVOLUTION_GAUGE_BASE + evolutionCount * EVOLUTION_GAUGE_STEP
 let evolutionActiveTimer; // 진화 발동 직후 EVOLUTION_BUFF_DURATION초간 우이(기본 스킬) 원샷원킬 버프가 지속되는 시간
 const EVOLUTION_BUFF_DURATION = 15;
+let preEvoShieldCount; // 진화 발동 직전 실드 개수 스냅샷 - 버스트 내내 무적이라 실드가 안 깎이므로, 버스트 종료 시 이 값으로 되돌려서 실드가 영구히 5개로 남지 않게 함
 const POST_BOSS_GRACE_DURATION = 18; // 보스(꾸대표/피디니무/연수아저씨) 클리어 직후 숨 돌릴 유예 시간(초), 등급 상관없이 동일 적용
 // 보스 3종(꾸대표 -> 피디니무 -> 연수아저씨 듀오)을 이 순서로 무한 순환. 한 번에 하나만 등장하고,
 // 처치하면 쿨다운 뒤 다음 순번이 등장. 한 바퀴를 다 돌면 처음(꾸대표)부터 다시 시작하며 계속 반복된다.
@@ -2025,6 +2027,7 @@ function initGame() {
   evolutionCount = 0;
   evolutionGaugeMax = EVOLUTION_GAUGE_BASE;
   evolutionActiveTimer = 0;
+  preEvoShieldCount = 0;
   spawnTimer = 0;
   eliteEncounterCount = 0;
   pdEncounterCount = 0;
@@ -2713,7 +2716,10 @@ function getNearbyCompanions(x, y, margin) {
 // ---------- 업데이트 ----------
 function update(dt) {
   gameTime += dt;
-  if (evolutionActiveTimer > 0) evolutionActiveTimer = Math.max(0, evolutionActiveTimer - dt);
+  if (evolutionActiveTimer > 0) {
+    evolutionActiveTimer = Math.max(0, evolutionActiveTimer - dt);
+    if (evolutionActiveTimer === 0) player.shieldCount = preEvoShieldCount; // 버스트 종료 - 실드를 진화 직전 개수로 복원
+  }
   // 피디니무 아레나 전투 중엔 몹 성장 곡선/스폰 페이스에 쓰이는 growthTime을 멈춰서
   // 보스전을 오래 끌수록 끝난 직후 몹이 갑자기 확 세지고 몰려나오는 문제를 방지한다.
   // (아레나 자체의 벽 축소 타이머·등급 판정 등은 계속 흐르는 gameTime을 그대로 사용)
