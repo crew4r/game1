@@ -1738,6 +1738,7 @@ async function playEvolutionSequence() {
   // 얼굴이 캐릭터를 가린 시점 - 이때 실제로 진화 스프라이트/버프를 적용해서, 얼굴이 비켜나면 이미 진화한 모습이 드러나게 함
   player.shieldCount = 5;
   evolutionActiveTimer = EVOLUTION_BUFF_DURATION;
+  player.specialInvulnTimer = EVOLUTION_BUFF_DURATION; // 진화 버스트 중 완전 무적
   await sleep(HOLD);
   evolutionFaceImg.style.left = '120%';
   await sleep(SLIDE);
@@ -3281,14 +3282,16 @@ function update(dt) {
     if (e.hp <= 0) {
       remove = true;
       killCount++;
-      if (e.isBoss) {
-        evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 10);
-      } else if (e.isGeneral) {
-        evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 5);
-      } else if (!bossActiveForEvo) {
-        evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 1);
+      if (evolutionActiveTimer <= 0) { // 진화 버스트 중 처치는 게이지에 영향 없음
+        if (e.isBoss) {
+          evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 10);
+        } else if (e.isGeneral) {
+          evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 5);
+        } else if (!bossActiveForEvo) {
+          evoGauge = Math.min(EVOLUTION_GAUGE_MAX, evoGauge + 1);
+        }
+        if (evoGauge >= EVOLUTION_GAUGE_MAX) triggerEvolution();
       }
-      if (evoGauge >= EVOLUTION_GAUGE_MAX) triggerEvolution();
       if (e.isElite) {
         if (e.isBoss) advanceBossCycle(); // 꾸대표/피디니무/연수아저씨 처치 -> 순번 이동 + 쿨다운 시작
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
@@ -3413,6 +3416,24 @@ function fireWeapon(w) {
   const dmg = w.dmg * (player.dmgMult || 1);
 
   if (w.type === 'chase') {
+    if (evolutionActiveTimer > 0) {
+      // 진화 버스트 중엔 조준 없이 5방향으로 균등하게 퍼져나감
+      const dirCount = 5;
+      const baseAngle = Math.random() * Math.PI * 2;
+      for (let i = 0; i < dirCount; i++) {
+        const a = baseAngle + (Math.PI * 2 / dirCount) * i;
+        bullets.push({
+          x: player.x, y: player.y, r: 6,
+          vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
+          dmg, life: 2, pierce: w.pierce, hitSet: new Set(), evoKills: 0,
+          color: w.bulletColor || '#ff7043', icon: w.icon || '🔥',
+          splash: !!w.evolved,
+          splashRadius: w.evolved ? 55 + w.level * 3 : 0,
+          splashDmgMult: w.evolved ? 1 + ((w.evolveStacks || 1) - 1) * 0.25 : 1
+        });
+      }
+      return;
+    }
     // 우이: 가장 가까운 적들에게 화염 발사 (발사량이 여럿이면 각각 다른 적을 정확히 조준)
     const nearest = findNearestEnemy(player.x, player.y);
     if (!nearest) return;
