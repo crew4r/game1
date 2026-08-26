@@ -763,7 +763,8 @@
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">리더보드 개편 및 초기화 안내</span></button>
-    <button class="noticeVersionBtn" data-version="0.9.5"><span class="titleGroup">0.9.5 업데이트<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></span><span class="sub">GLOW UP! 진화 시스템 추가!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260826"><span class="titleGroup">핫픽스 안내 (260826)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></span></button>
+    <button class="noticeVersionBtn" data-version="0.9.5">0.9.5 업데이트<span class="sub">GLOW UP! 진화 시스템 추가!</span></button>
     <button class="noticeVersionBtn" data-version="0.9.4">0.9.4 업데이트<span class="sub">몹 리젠 방식 전면 개편 및 엘리트몹 추가</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260824">핫픽스 안내 (260824)</button>
     <button class="noticeVersionBtn" data-version="hotfix260823">핫픽스 안내 (260823)</button>
@@ -4958,7 +4959,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = '0.9.5';
+const LATEST_NOTICE_VERSION = 'hotfix260826';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -4988,6 +4989,12 @@ async function checkNewBadges() {
 window.addEventListener('load', checkNewBadges);
 
 const NOTICE_CONTENT = {
+  'hotfix260826': {
+    title: '핫픽스 안내 (260826)',
+    items: [
+      { text: '🦸진화 발동 조건을 완화하였습니다.<br>도파민 터지는 전투를 경험하세요!' },
+    ],
+  },
   '0.9.5': {
     title: 'GLOW UP! 진화 시스템 추가!',
     items: [
