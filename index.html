@@ -669,6 +669,17 @@
 </head>
 <body>
 
+<script>
+// URL에 ?debug=1 을 붙이면 폰 화면에서 바로 콘솔을 볼 수 있는 디버그 패널(eruda)이 뜸.
+// 평소 플레이에는 전혀 영향 없음 - 임시 진단용, 원인 파악되면 제거할 것.
+if (new URLSearchParams(location.search).get('debug') === '1') {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  s.onload = () => { eruda.init(); console.log('[디버그] eruda 콘솔 활성화됨'); };
+  document.head.appendChild(s);
+}
+</script>
+
 <canvas id="gameCanvas"></canvas>
 <div id="lowHpFlash"></div>
 
@@ -1920,6 +1931,7 @@ function joystickReset() {
 // touchZone은 한 번 활성화되면 계속 화면 전체를 덮은 채로 남아있어서, 그 위의
 // input/textarea가 모바일에서 터치/키패드 입력을 못 받는 문제가 있었음
 function disableTouchZone() {
+  console.log('[디버그] disableTouchZone 호출, joystickPointerId=', joystickPointerId, 'activeElement=', document.activeElement && document.activeElement.id);
   // 조이스틱을 누른 채로 사망(게임오버) 시 그 터치 포인터가 touchZone에 캡처된 상태로 남아있으면,
   // display:none을 해도 일부 모바일 브라우저에서 캡처가 바로 해제되지 않아 이후 닉네임 입력창을
   // 탭했을 때 첫 탭은 씹히고 두 번째 탭부터 키패드가 뜨는(그마저도 입력이 씹히는) 문제가 있었음.
@@ -1943,6 +1955,7 @@ touchZone.addEventListener('pointerdown', (e) => {
   if (!running) return;
   joystickPointerId = e.pointerId;
   touchZone.setPointerCapture(e.pointerId);
+  console.log('[디버그] 조이스틱 pointerdown, pointerId=', e.pointerId);
   joystickShowAt(e.clientX, e.clientY);
   joystickSetFromEvent(e);
 });
@@ -1951,6 +1964,7 @@ touchZone.addEventListener('pointermove', (e) => {
   joystickSetFromEvent(e);
 });
 function joystickEnd(e) {
+  console.log('[디버그] joystickEnd', e.type, 'pointerId=', e.pointerId, 'joystickPointerId=', joystickPointerId);
   if (e.pointerId !== joystickPointerId) return;
   joystickPointerId = null;
   joystickReset();
@@ -5401,8 +5415,15 @@ document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
 // input 탭 시 브라우저 기본 탭-포커스만으로는 소프트 키패드를 안정적으로 못 띄우는 경우가 있어,
 // touchend에서 명시적으로 focus()를 호출해 포커스 트리거를 이중으로 보강한다.
 document.getElementById('nicknameInput').addEventListener('touchend', (e) => {
+  console.log('[디버그] nicknameInput touchend, activeElement 전=', document.activeElement && document.activeElement.id);
   e.preventDefault();
   e.target.focus();
+  console.log('[디버그] focus() 호출 후 activeElement=', document.activeElement && document.activeElement.id);
+});
+['touchstart', 'focus', 'blur', 'keydown', 'input'].forEach((evtName) => {
+  document.getElementById('nicknameInput').addEventListener(evtName, (e) => {
+    console.log(`[디버그] nicknameInput ${evtName}`, evtName === 'keydown' ? e.key : '', evtName === 'input' ? ('value=' + e.target.value) : '');
+  });
 });
 document.getElementById('playAgainBtn').onclick = initGame;
 function backToTitle() {
