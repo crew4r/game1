@@ -1929,6 +1929,13 @@ function disableTouchZone() {
   joystickPointerId = null;
   joystickReset();
   touchZone.style.display = 'none';
+  // 카카오톡 인앱 브라우저 등 일부 웹뷰는 display 변경만으로 내부 터치/포커스 라우팅 상태가
+  // 바로 갱신되지 않아, 이후 입력창을 탭해도 첫 탭은 무시되고 두 번째 탭부터 키패드가 뜨는데도
+  // 실제 키 입력은 씹히는 경우가 있었음. 강제 리플로우 + 잔여 포커스 초기화로 상태를 정리한다.
+  void touchZone.offsetHeight;
+  if (document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
 }
 touchZone.addEventListener('pointerdown', (e) => {
   if (e.pointerType !== 'touch') return;
