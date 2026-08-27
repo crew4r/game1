@@ -1920,6 +1920,12 @@ function joystickReset() {
 // touchZone은 한 번 활성화되면 계속 화면 전체를 덮은 채로 남아있어서, 그 위의
 // input/textarea가 모바일에서 터치/키패드 입력을 못 받는 문제가 있었음
 function disableTouchZone() {
+  // 조이스틱을 누른 채로 사망(게임오버) 시 그 터치 포인터가 touchZone에 캡처된 상태로 남아있으면,
+  // display:none을 해도 일부 모바일 브라우저에서 캡처가 바로 해제되지 않아 이후 닉네임 입력창을
+  // 탭했을 때 첫 탭은 씹히고 두 번째 탭부터 키패드가 뜨는(그마저도 입력이 씹히는) 문제가 있었음.
+  if (joystickPointerId !== null) {
+    try { touchZone.releasePointerCapture(joystickPointerId); } catch (e) {}
+  }
   joystickPointerId = null;
   joystickReset();
   touchZone.style.display = 'none';
@@ -5454,6 +5460,8 @@ const NOTICE_CONTENT = {
       { text: '🎥 유튜브 버튼을 통해 제작 비하인드를 보실 수 있습니다.' },
       { gap: true },
       { text: '🕹️모바일 플레이 시 패드 조작에 따라 캐릭터 방향을 세부 조정했습니다.' },
+      { gap: true },
+      { text: '⌨️ 보스러시 모바일 플레이에서 리더보드에 키입력이 되지 않던 오류를 수정하였습니다.' },
     ],
   },
   '0.9.6': {
