@@ -5335,6 +5335,7 @@ document.getElementById('viewLeaderboardBtn').onclick = () => {
   document.getElementById('startLeaderboardModal').style.display = 'flex';
   const defaultPlatform = isMobileLayout ? 'mobile' : 'pc';
   setActiveLbTab(startLbTabs, defaultPlatform);
+  startLbMode = gameMode === 'bossrush' ? 'bossrush' : 'survival'; // 메인화면에서 고른 모드에 맞춰 리더보드도 자동으로 전환
   setActiveLbModeTab(startLbModeTabs, startLbMode);
   // 렌더링 직전에 "마지막으로 본 시각"을 고정해둬야 방금 갱신할 값이 아니라 지난번 열람 시각
   // 기준으로 신규 기록(New!)을 판단할 수 있다 (localStorage 갱신은 그 다음에 한다)
