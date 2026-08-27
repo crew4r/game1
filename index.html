@@ -5169,6 +5169,11 @@ function loop(ts) {
   const dt = Math.min(0.05, (ts - lastTs) / 1000);
   lastTs = ts;
   update(dt);
+  // update(dt) 안에서 사망 판정 시 endGame()이 동기 호출되어 running이 false로 바뀔 수 있음.
+  // 이 경우 이번 프레임의 무거운 render()를 그대로 돌리면(보스러시는 보스 다수/전용 몹 등으로
+  // 씬이 훨씬 무거워서) 게임오버 모달이 뜨는 순간과 겹쳐 메인 스레드가 바빠지고, 그 직후
+  // 사용자의 첫 탭이 카카오톡 인앱 브라우저 등에서 키패드를 못 띄우는 현상으로 이어질 수 있음.
+  if (!running) return;
   render();
 
   if (!fpsIntervalStart) fpsIntervalStart = ts;
@@ -5391,6 +5396,13 @@ async function submitScore() {
 document.getElementById('submitScoreBtn').onclick = submitScore;
 document.getElementById('nicknameInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitScore();
+});
+// 카카오톡 인앱 브라우저 등 일부 모바일 웹뷰는 게임 화면(터치/캔버스 위주)에서 바로 이어지는
+// input 탭 시 브라우저 기본 탭-포커스만으로는 소프트 키패드를 안정적으로 못 띄우는 경우가 있어,
+// touchend에서 명시적으로 focus()를 호출해 포커스 트리거를 이중으로 보강한다.
+document.getElementById('nicknameInput').addEventListener('touchend', (e) => {
+  e.preventDefault();
+  e.target.focus();
 });
 document.getElementById('playAgainBtn').onclick = initGame;
 function backToTitle() {
