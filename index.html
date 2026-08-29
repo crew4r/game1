@@ -846,7 +846,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
 <div id="noticeModal">
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
-    <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">리더보드 개편 및 초기화 안내</span></button>
+    <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">기록수집 서버가 터졌습니다</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260827"><span class="titleGroup">핫픽스 안내 (260827)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></span></button>
     <button class="noticeVersionBtn" data-version="0.9.6">0.9.6 업데이트<span class="sub">보스전 전용 하드코어 모드 베타버전 오픈!</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260826">핫픽스 안내 (260826)</button>
@@ -920,6 +920,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
       <tbody id="adminTableBody"></tbody>
     </table>
   </div>
+  <button id="migrateSkillPicksBtn" style="margin-top:10px; background:#333; color:#ccc; border:1px solid #555; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">기존 skillPicks 데이터 합산 마이그레이션 (1회용)</button>
   <button id="closeAdminBtn">닫기</button>
 </div>
 
@@ -2110,6 +2111,7 @@ renderCharSelect(); // 초기 렌더(0으로 표시) - 실제 값은 아래에�
 let currentRunDifficulty = 'hard'; // 이번 판이 시작될 때의 난이도를 스냅샷 - 게임오버 화면에서 리더보드 등록 가능 여부 판단용
 function initGame() {
   paused = false;
+  pendingSkillPicks = {};
   currentRunDifficulty = selectedDifficulty;
   currentRunMode = gameMode;
   rushBossStage = -1;
@@ -4177,19 +4179,21 @@ function applyAnimalSkill(key) {
 }
 
 // 레벨업 카드에서 플레이어가 직접 고른 스킬만 픽률 통계용으로 기록 (컴패니언 랜덤 지급은 제외)
+// 스킬 픽마다 바로 서버에 쓰지 않고 이번 판 동안 로컬에 집계해뒀다가
+// endGame()에서 딱 한 번만 합계로 반영한다 (호출당 쓰기 1회로, 판당 15~30회 쓰던 것을 줄임).
+let pendingSkillPicks = {};
 function logSkillPick(opt) {
-  if (!window.fbLogSkillPick) return;
-  let skillKey, skillType;
+  let skillKey;
   if (opt.type === 'upgrade') {
-    skillKey = opt.weapon.key; skillType = 'upgrade';
+    skillKey = opt.weapon.key;
   } else if (opt.type === 'new') {
-    skillKey = opt.base.key; skillType = 'new';
+    skillKey = opt.base.key;
   } else if (opt.type === 'special') {
-    skillKey = opt.key; skillType = 'special';
+    skillKey = opt.key;
   } else {
-    skillKey = opt.base.key; skillType = 'passive';
+    skillKey = opt.base.key;
   }
-  window.fbLogSkillPick({ skillKey, skillType });
+  pendingSkillPicks[skillKey] = (pendingSkillPicks[skillKey] || 0) + 1;
 }
 
 function applyChoice(opt, ignoreCap) {
@@ -5217,6 +5221,8 @@ function endGame() {
   charSelectCountsCache[selectedCharacter] = (charSelectCountsCache[selectedCharacter] || 0) + 1;
   renderCharSelect();
   if (window.fbIncrementCharSelectCount) window.fbIncrementCharSelectCount(selectedCharacter);
+  if (window.fbFlushSkillPicks && Object.keys(pendingSkillPicks).length) window.fbFlushSkillPicks(pendingSkillPicks);
+  pendingSkillPicks = {};
   lastScore = computeScore();
   document.getElementById('finalStats').innerHTML =
     `생존 시간: ${document.getElementById('timeText').textContent}<br>` +
@@ -5598,14 +5604,14 @@ const NOTICE_CONTENT = {
     ],
   },
   'notice_leaderboard_weekly': {
-    title: '리더보드 개편 및 초기화 안내',
+    title: '기록수집 서버가 터졌습니다',
     items: [
-      { text: '더 많은 플레이어가 최고기록을 세우는 경험을 할 수 있도록 리더보드를 개편하였습니다.' },
+      { text: '안녕하세요 나두클입니다.' },
       { gap: true },
-      { text: '이제 주마다 기록이 초기화됩니다.' },
-      { text: '전체 최고기록 3인은 명예의 전당에 등록됩니다.' },
+      { text: '갑작스런 일일 사용량 증가로 인해 현재 게임 서버가 터져버렸습니다.' },
+      { text: '금일은 기록 등록, 게시판 이용등이 불가한 상태가 유지될 가능성이 높습니다.' },
       { gap: true },
-      { text: '한주의 최고기록에 도전하시고 명예의 전당에도 기록을 남겨보세요.' },
+      { text: '거듭 이용에 불편함을 드려 죄송합니다.' },
     ],
   },
   'hotfix260821': {
@@ -6132,26 +6138,32 @@ function skillDisplayName(skillKey) {
   return skillKey;
 }
 
+async function refreshMigrateBtnState() {
+  const btn = document.getElementById('migrateSkillPicksBtn');
+  if (!window.fbIsSkillPicksMigrated) return;
+  const done = await window.fbIsSkillPicksMigrated();
+  if (done) {
+    btn.disabled = true;
+    btn.textContent = '마이그레이션 완료됨 (재실행 불가)';
+  }
+}
 async function openAdminPanel() {
   const modal = document.getElementById('adminModal');
   const tbody = document.getElementById('adminTableBody');
   tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">불러오는 중...</td></tr>';
   modal.style.display = 'flex';
+  refreshMigrateBtnState();
 
   if (!window.fbLoadAllSkillPicks) {
     tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#e33;">통계 연결 실패</td></tr>';
     return;
   }
-  const picks = await window.fbLoadAllSkillPicks();
-  if (!picks.length) {
+  const counts = await window.fbLoadAllSkillPicks();
+  if (!Object.keys(counts).length) {
     tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">아직 데이터가 없어요</td></tr>';
     return;
   }
-  const counts = {};
-  for (const p of picks) {
-    counts[p.skillKey] = (counts[p.skillKey] || 0) + 1;
-  }
-  const total = picks.length;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
 
   tbody.innerHTML = '';
@@ -6169,6 +6181,22 @@ async function openAdminPanel() {
 
 document.getElementById('closeAdminBtn').onclick = () => {
   document.getElementById('adminModal').style.display = 'none';
+};
+document.getElementById('migrateSkillPicksBtn').onclick = async () => {
+  if (!window.fbMigrateSkillPicks) { alert('마이그레이션 함수 로딩 안됨'); return; }
+  if (!confirm('기존 skillPicks 컬렉션 전체를 합산해서 stats/skillPicks에 반영합니다.\n한 번만 실행 가능합니다. 진행할까요?')) return;
+  const btn = document.getElementById('migrateSkillPicksBtn');
+  btn.disabled = true;
+  btn.textContent = '마이그레이션 중...';
+  const result = await window.fbMigrateSkillPicks();
+  if (!result) {
+    btn.textContent = '실패 (콘솔 확인)';
+    btn.disabled = false;
+  } else if (result.alreadyDone) {
+    btn.textContent = '마이그레이션 완료됨 (재실행 불가)';
+  } else {
+    btn.textContent = `완료 (문서 ${result.docCount}개, 스킬 ${result.skillCount}종 반영됨) - 재실행 불가`;
+  }
 };
 
 document.getElementById('startBtn').onclick = () => {
@@ -6534,30 +6562,68 @@ window.addEventListener('load', () => {
     }
   };
 
-  // 레벨업 카드에서 플레이어가 직접 고른 스킬만 기록 (컴패니언 랜덤 지급분은 제외)
-  window.fbLogSkillPick = async function (entry) {
+  // 레벨업 카드에서 플레이어가 직접 고른 스킬 집계 - 픽할 때마다 쓰지 않고
+  // 판이 끝날 때(endGame) 한 번에 합계로만 반영해 쓰기 횟수를 크게 줄인다.
+  // stats/skillPicks 문서 하나에 skillKey를 필드명으로 써서 increment.
+  window.fbFlushSkillPicks = async function (picks) {
     try {
-      await addDoc(collection(db, "skillPicks"), {
-        skillKey: entry.skillKey,
-        skillType: entry.skillType,
-        createdAt: serverTimestamp()
-      });
+      const updateObj = {};
+      for (const [skillKey, count] of Object.entries(picks)) {
+        updateObj[skillKey] = increment(count);
+      }
+      await setDoc(doc(db, "stats", "skillPicks"), updateObj, { merge: true });
     } catch (e) {
-      console.warn("스킬 픽 로그 실패:", e);
+      console.warn("스킬 픽 집계 반영 실패:", e);
     }
   };
 
-  // 관리자 통계 화면용: 전체 스킬 픽 로그 조회 (최근 5000개까지)
+  // 1회용 마이그레이션: 예전 방식(픽마다 문서 하나)으로 쌓인 skillPicks 컬렉션 전체를
+  // skillKey별로 합산해서 새 집계 문서(stats/skillPicks)에 반영한다. 관리자 패널에서 수동 실행.
+  // 마이그레이션 완료 여부는 별도 문서(stats/skillPicksMigration)에 표시 - stats/skillPicks
+  // 문서는 필드가 전부 skillKey별 카운트로 읽히는 구조라 여기에 마커를 섞으면 통계가 깨짐.
+  window.fbIsSkillPicksMigrated = async function () {
+    try {
+      const snap = await getDoc(doc(db, "stats", "skillPicksMigration"));
+      return snap.exists() && snap.data().migrated === true;
+    } catch (e) {
+      console.error("마이그레이션 여부 확인 실패:", e);
+      return false;
+    }
+  };
+  window.fbMigrateSkillPicks = async function () {
+    try {
+      if (await window.fbIsSkillPicksMigrated()) {
+        return { alreadyDone: true };
+      }
+      const snap = await getDocs(collection(db, "skillPicks"));
+      const counts = {};
+      snap.forEach(d => {
+        const data = d.data();
+        if (data.skillKey) counts[data.skillKey] = (counts[data.skillKey] || 0) + 1;
+      });
+      const updateObj = {};
+      for (const [skillKey, count] of Object.entries(counts)) {
+        updateObj[skillKey] = increment(count);
+      }
+      if (Object.keys(updateObj).length) {
+        await setDoc(doc(db, "stats", "skillPicks"), updateObj, { merge: true });
+      }
+      await setDoc(doc(db, "stats", "skillPicksMigration"), { migrated: true, migratedAt: serverTimestamp() });
+      return { docCount: snap.size, skillCount: Object.keys(counts).length };
+    } catch (e) {
+      console.error("스킬 픽 마이그레이션 실패:", e);
+      return null;
+    }
+  };
+
+  // 관리자 통계 화면용: 집계 문서 하나만 조회 (skillKey -> 누적 횟수)
   window.fbLoadAllSkillPicks = async function () {
     try {
-      const q = query(collection(db, "skillPicks"), limit(5000));
-      const snap = await getDocs(q);
-      const list = [];
-      snap.forEach(d => list.push(d.data()));
-      return list;
+      const snap = await getDoc(doc(db, "stats", "skillPicks"));
+      return snap.exists() ? snap.data() : {};
     } catch (e) {
       console.error("스킬 픽 통계 조회 실패:", e);
-      return [];
+      return {};
     }
   };
 </script>
