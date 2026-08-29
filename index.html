@@ -2089,9 +2089,9 @@ let levelUpChoices = [], levelUpCardEls = [], levelUpSelectedIndex = 0;
 let pendingLevelUps = 0; // 한 번에 여러 레벨 오를 때, 카드 선택을 순서대로 이어서 띄우기 위한 대기열
 
 const WEAPON_MAX_LEVEL = 8; // 무기 하나가 카드로 강화될 수 있는 최대 레벨 (도달하면 해당 무기의 강화 카드가 더 이상 뽑기 풀에 안 나옴)
-// 캐릭터별 기본무기(우이) 전용 원소 특성 - 명중 시 25% 확률로 발동
+// 캐릭터별 기본무기(우이) 전용 원소 특성 - 명중 시 일정 확률로 발동 (원작 대비 총 데미지 0%대로 맞춤)
 const WOOIE_ELEMENT_BY_CHAR = { cat: 'fire', seal: 'water', sheep: 'wind', elephant: 'lightning', bear: 'earth' };
-const WOOIE_ELEMENT_PROC_CHANCE = 0.15;
+const WOOIE_ELEMENT_PROC_CHANCE = 0.075;
 const WEAPON_POOL = [
   { key: 'wooie',         name: '우이',          icon: '🔥', desc: '가장 가까운 적에게 화염 발사', type: 'chase', dmg: 6,  cd: 0.6, count: 1, pierce: 1, speed: 420 },
   { key: 'oishe',         name: '오이쉬에',       icon: '😋', desc: '엄지를 위로 던져 포물선 광역 피해', type: 'throw', dmg: 14, cd: 1.4, radius: 88, throwRange: 260, flightTime: 0.5 },
@@ -3874,12 +3874,12 @@ function applyElementProc(element, e, baseDmg, b) {
   if (element === 'fire') {
     // 화상: 지속 데미지 (진화 시 죽으면 근처로 옮겨붙음 - 사망 처리 쪽에서 처리)
     e.burnTimer = 2;
-    e.burnDps = baseDmg * 0.4 * dmgMult;
+    e.burnDps = baseDmg * 0.42 * dmgMult;
     e.burnFromFire = true;
     spawnParticles(e.x, e.y, '#ff5722', 3);
   } else if (element === 'water') {
     // 빙결: 짧게 완전 정지 + 데미지(140%), 진화 시 주변 적도 슬로우
-    e.hp -= baseDmg * 1.4 * dmgMult;
+    e.hp -= baseDmg * 0.85 * dmgMult;
     e.slowTimer = Math.max(e.slowTimer || 0, 0.5);
     e.slowFactor = 0;
     spawnParticles(e.x, e.y, '#4fc3f7', 4);
@@ -3898,14 +3898,14 @@ function applyElementProc(element, e, baseDmg, b) {
     spawnParticles(e.x, e.y, '#b3e5fc', 3);
     const hit1 = queryEnemiesNear(e.x, e.y, e.r + 40).find(o => o !== e && dist(e, o) < e.r + o.r + 10);
     if (hit1) {
-      hit1.hp -= baseDmg * 1.35 * dmgMult;
-      spawnDamageNumber(hit1.x, hit1.y, baseDmg * 1.35 * dmgMult, hit1.isElite ? 'elite' : 'normal');
+      hit1.hp -= baseDmg * 1.83 * dmgMult;
+      spawnDamageNumber(hit1.x, hit1.y, baseDmg * 1.83 * dmgMult, hit1.isElite ? 'elite' : 'normal');
       spawnParticles(hit1.x, hit1.y, '#b3e5fc', 4);
       if (b.windDoubleBounce) {
         const hit2 = queryEnemiesNear(hit1.x, hit1.y, hit1.r + 40).find(o => o !== e && o !== hit1 && dist(hit1, o) < hit1.r + o.r + 10);
         if (hit2) {
-          hit2.hp -= baseDmg * 0.6 * dmgMult;
-          spawnDamageNumber(hit2.x, hit2.y, baseDmg * 0.6 * dmgMult, hit2.isElite ? 'elite' : 'normal');
+          hit2.hp -= baseDmg * 0.81 * dmgMult;
+          spawnDamageNumber(hit2.x, hit2.y, baseDmg * 0.81 * dmgMult, hit2.isElite ? 'elite' : 'normal');
           spawnParticles(hit2.x, hit2.y, '#b3e5fc', 3);
         }
       }
@@ -3917,8 +3917,8 @@ function applyElementProc(element, e, baseDmg, b) {
     const n = b.chainCount || 1;
     for (let i = 0; i < Math.min(n, nearby.length); i++) {
       const t = nearby[i];
-      t.hp -= baseDmg * 0.7 * dmgMult;
-      spawnDamageNumber(t.x, t.y, baseDmg * 0.7 * dmgMult, t.isElite ? 'elite' : 'normal');
+      t.hp -= baseDmg * 0.42 * dmgMult;
+      spawnDamageNumber(t.x, t.y, baseDmg * 0.42 * dmgMult, t.isElite ? 'elite' : 'normal');
       spawnParticles(t.x, t.y, '#ffee58', 3);
     }
   } else if (element === 'earth') {
@@ -3929,8 +3929,8 @@ function applyElementProc(element, e, baseDmg, b) {
       .sort((a2, b2) => dist(e, a2) - dist(e, b2))
       .slice(0, 3);
     for (const t of targets) {
-      t.hp -= baseDmg * 0.45 * dmgMult;
-      spawnDamageNumber(t.x, t.y, baseDmg * 0.45 * dmgMult, t.isElite ? 'elite' : 'normal');
+      t.hp -= baseDmg * 0.44 * dmgMult;
+      spawnDamageNumber(t.x, t.y, baseDmg * 0.44 * dmgMult, t.isElite ? 'elite' : 'normal');
     }
     spawnParticles(e.x, e.y, '#8d6e63', 10);
   }
