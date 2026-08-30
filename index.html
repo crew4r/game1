@@ -907,7 +907,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
 <div id="noticeModal">
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
-    <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">기록수집 서버가 터졌습니다</span></button>
+    <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">신규버전이 업데이트 되었습니다.</span></button>
     <button class="noticeVersionBtn" data-version="notice_0.9.7_preview">0.9.7 업데이트 안내<span class="sub">꾸꾸꾸와 센세(260831)</span><span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260827">핫픽스 안내 (260827)</button>
     <button class="noticeVersionBtn" data-version="0.9.6">0.9.6 업데이트<span class="sub">보스전 전용 하드코어 모드 베타버전 오픈!</span></button>
@@ -6838,14 +6838,18 @@ const NOTICE_CONTENT = {
     ],
   },
   'notice_leaderboard_weekly': {
-    title: '기록수집 서버가 터졌습니다',
+    title: '신규버전이 업데이트 되었습니다.',
     items: [
       { text: '안녕하세요 나두클입니다.' },
       { gap: true },
-      { text: '갑작스런 일일 사용량 증가로 인해 현재 게임 서버가 터져버렸습니다.' },
-      { text: '금일은 기록 등록, 게시판 이용등이 불가한 상태가 유지될 가능성이 높습니다.' },
+      { text: '리더보드 초기화 시간에 맞춰 260831 신규 버전이 업데이트 되었습니다.' },
+      { text: '기본 무기에 특성이 부여되며 진화시 강화 공격을 수행합니다.' },
       { gap: true },
-      { text: '거듭 이용에 불편함을 드려 죄송합니다.' },
+      { text: '새로이 적용되는 무기여서 밸런스 추가 조율이 진행될 수 있습니다.' },
+      { gap: true },
+      { text: '모쪼록 즐거운 게임 되시길 바라겠습니다.' },
+      { gap: true },
+      { text: '감사합니다.😀' },
     ],
   },
   'hotfix260821': {
