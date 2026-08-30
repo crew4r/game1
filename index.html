@@ -7801,10 +7801,12 @@ window.addEventListener('load', () => {
     }
   };
 
-  // ---------- 캐릭터별 선택 횟수 (전체 유저 서버 집계) ----------
+  // ---------- 캐릭터별 선택 횟수 (전체 유저 서버 집계, 주간 리더보드와 동일하게 주 단위로 집계) ----------
+  // 문서를 주차 키별로 나눠서(charSelect_2026-W35) 저장 - 과거 데이터는 그대로 남겨두고
+  // 항상 이번 주 문서만 조회/증가시키는 방식이라 매주 월요일에 자동으로 0부터 다시 집계됨.
   window.fbGetCharSelectCounts = async function () {
     try {
-      const snap = await getDoc(doc(db, "stats", "charSelect"));
+      const snap = await getDoc(doc(db, "stats", "charSelect_" + getWeekKey(new Date())));
       return snap.exists() ? snap.data() : {};
     } catch (e) {
       console.error("캐릭터 선택 횟수 조회 실패:", e);
@@ -7813,7 +7815,7 @@ window.addEventListener('load', () => {
   };
   window.fbIncrementCharSelectCount = async function (key) {
     try {
-      await setDoc(doc(db, "stats", "charSelect"), { [key]: increment(1) }, { merge: true });
+      await setDoc(doc(db, "stats", "charSelect_" + getWeekKey(new Date())), { [key]: increment(1) }, { merge: true });
       return true;
     } catch (e) {
       console.error("캐릭터 선택 횟수 증가 실패:", e);
