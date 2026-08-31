@@ -5036,9 +5036,11 @@ function updateLevelUpSelection() {
 // ---------- 동물 컴패니언 룰렛 ----------
 function applyAnimalSkill(key) {
   if (key === 'elephant') {
-    const count = enemies.length;
-    for (const e of enemies) spawnParticles(e.x, e.y, '#ffd54f', 6);
-    enemies = [];
+    // 보스는 "백제자객"이 아니고, 강제로 지워버리면 처치 판정 없이 사라져 보스전이 진행 불가 상태가 됨 - 보스는 제외
+    const toClear = enemies.filter(e => !e.isBoss);
+    const count = toClear.length;
+    for (const e of toClear) spawnParticles(e.x, e.y, '#ffd54f', 6);
+    enemies = enemies.filter(e => e.isBoss);
     return `백제자객 ${count}명 제거!`;
   } else if (key === 'sheep') {
     let gained = 0;
