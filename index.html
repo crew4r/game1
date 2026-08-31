@@ -509,6 +509,15 @@
   .noticeVersionBtn.urgent { color: #ff5252; }
   .noticeVersionBtn.urgent .sub { color: #ff8a80; }
   #noticeDetailTitle { color: #ffd54f; font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+  #noticeVoteRow { display: flex; gap: 10px; margin-top: 12px; }
+  .noticeVoteBtn {
+    padding: 8px 16px; font-size: 13px; font-weight: bold;
+    background: transparent; border: 1px solid #444; color: #ccc;
+    border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .noticeVoteBtn:hover { background: rgba(255,255,255,0.06); }
+  .noticeVoteBtn.voted { border-color: #ffd54f; color: #ffd54f; background: rgba(255,213,79,0.1); }
+  .noticeVoteBtn:disabled { cursor: default; opacity: 0.85; }
   #noticeBackBtn {
     margin-top: 12px; padding: 6px 18px; font-size: 13px;
     background: transparent; border: 1px solid #666; color: #ccc;
@@ -924,6 +933,10 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   </div>
   <div id="noticeDetailTitle" style="display:none;"></div>
   <ul id="noticeList" style="display:none;"></ul>
+  <div id="noticeVoteRow" style="display:none;">
+    <button id="noticeLikeBtn" class="noticeVoteBtn">👍 <span id="noticeLikeCount">0</span></button>
+    <button id="noticeDislikeBtn" class="noticeVoteBtn">👎 <span id="noticeDislikeCount">0</span></button>
+  </div>
   <button id="noticeBackBtn" style="display:none;">← 목록으로</button>
   <button id="closeNoticeBtn">닫기</button>
 </div>
@@ -6937,6 +6950,7 @@ function showNoticeVersionList() {
   document.getElementById('noticeVersionList').style.display = 'block';
   document.getElementById('noticeDetailTitle').style.display = 'none';
   document.getElementById('noticeList').style.display = 'none';
+  document.getElementById('noticeVoteRow').style.display = 'none';
   document.getElementById('noticeBackBtn').style.display = 'none';
   // 최신 공지(LATEST_NOTICE_VERSION) 항목에 New! 표시 - 아직 안 읽었을 때만.
   // 새 공지 추가 시 noticeItemNewBadge id를 그 항목의 버튼으로 옮겨줄 것
@@ -6971,7 +6985,48 @@ function showNoticeDetail(version) {
     return i < chunks.length - 1 ? html + '<li class="gap"></li>' : html;
   }).join('');
   listEl.style.display = 'block';
+  renderNoticeVotes(version);
   document.getElementById('noticeBackBtn').style.display = 'inline-block';
+}
+// 공지사항 좋아요/싫어요 - localStorage에 버전별 투표 여부를 저장해 기기당 중복 투표를 막는다.
+async function renderNoticeVotes(version) {
+  const row = document.getElementById('noticeVoteRow');
+  const likeBtn = document.getElementById('noticeLikeBtn');
+  const dislikeBtn = document.getElementById('noticeDislikeBtn');
+  const likeCountEl = document.getElementById('noticeLikeCount');
+  const dislikeCountEl = document.getElementById('noticeDislikeCount');
+  row.style.display = 'flex';
+  const votedKey = 'votedNotice_' + version;
+
+  function applyVotedState() {
+    const v = localStorage.getItem(votedKey);
+    likeBtn.classList.toggle('voted', v === 'like');
+    dislikeBtn.classList.toggle('voted', v === 'dislike');
+    likeBtn.disabled = !!v;
+    dislikeBtn.disabled = !!v;
+  }
+
+  likeBtn.disabled = true;
+  dislikeBtn.disabled = true;
+  const votes = (window.fbGetNoticeVotes ? await window.fbGetNoticeVotes(version) : null) || { like: 0, dislike: 0 };
+  likeCountEl.textContent = votes.like || 0;
+  dislikeCountEl.textContent = votes.dislike || 0;
+  applyVotedState();
+
+  likeBtn.onclick = async () => {
+    if (localStorage.getItem(votedKey)) return;
+    localStorage.setItem(votedKey, 'like');
+    likeCountEl.textContent = (parseInt(likeCountEl.textContent, 10) || 0) + 1;
+    applyVotedState();
+    if (window.fbVoteNotice) await window.fbVoteNotice(version, 'like');
+  };
+  dislikeBtn.onclick = async () => {
+    if (localStorage.getItem(votedKey)) return;
+    localStorage.setItem(votedKey, 'dislike');
+    dislikeCountEl.textContent = (parseInt(dislikeCountEl.textContent, 10) || 0) + 1;
+    applyVotedState();
+    if (window.fbVoteNotice) await window.fbVoteNotice(version, 'dislike');
+  };
 }
 document.querySelectorAll('.noticeVersionBtn').forEach(btn => {
   btn.onclick = () => showNoticeDetail(btn.dataset.version);
@@ -7821,6 +7876,26 @@ window.addEventListener('load', () => {
       return true;
     } catch (e) {
       console.error("캐릭터 선택 횟수 증가 실패:", e);
+      return false;
+    }
+  };
+
+  // ---------- 공지사항 좋아요/싫어요 (전체 유저 서버 집계, stats/noticeVote_<버전>에 like/dislike 필드로 저장) ----------
+  window.fbGetNoticeVotes = async function (version) {
+    try {
+      const snap = await getDoc(doc(db, "stats", "noticeVote_" + version));
+      return snap.exists() ? snap.data() : { like: 0, dislike: 0 };
+    } catch (e) {
+      console.error("공지사항 투표 조회 실패:", e);
+      return null;
+    }
+  };
+  window.fbVoteNotice = async function (version, type) {
+    try {
+      await setDoc(doc(db, "stats", "noticeVote_" + version), { [type]: increment(1) }, { merge: true });
+      return true;
+    } catch (e) {
+      console.error("공지사항 투표 반영 실패:", e);
       return false;
     }
   };
