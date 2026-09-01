@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>백제어택 데이터 시트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15131c;
+    --surface:#1e1c28;
+    --surface-2:#262233;
+    --line:#38334a;
+    --text:#ece7f5;
+    --text-dim:#a79fc0;
+    --accent:#ffd54f;
+    --accent-dim:#4a3f1a;
+    --fire:#ff7043;
+    --water:#4fc3f7;
+    --wind:#8bd6c4;
+    --bolt:#ffee58;
+    --earth:#c99b6e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Gothic A1',"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    word-break:keep-all;
+    overflow-wrap:break-word;
+  }
+  .page{max-width:800px;margin:0 auto;padding:48px 22px 90px;}
+  .eyebrow{
+    font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--accent);
+    text-transform:uppercase;
+  }
+  h1{
+    font-family:'Black Han Sans',sans-serif;
+    font-size:clamp(30px,5.5vw,44px);
+    line-height:1.2;margin:10px 0 8px;text-wrap:balance;letter-spacing:.01em;
+  }
+  .lede{
+    margin-top:16px;font-size:15.5px;color:var(--text-dim);max-width:64ch;
+  }
+  .lede b{color:var(--text);}
+  .noticebox{
+    margin-top:22px;background:var(--surface-2);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:10px;padding:14px 18px;
+    font-size:13.5px;color:var(--text-dim);
+  }
+  .noticebox b{color:var(--text);}
+
+  section{margin-top:52px;}
+  .sec-head{
+    display:flex;align-items:baseline;gap:10px;margin-bottom:16px;
+    border-bottom:1px solid var(--line);padding-bottom:10px;
+  }
+  .sec-head h2{
+    font-family:'Black Han Sans',sans-serif;font-size:21px;margin:0;
+    color:#fff;letter-spacing:.01em;
+  }
+  .sec-sub{font-size:12.5px;color:var(--text-dim);}
+
+  /* 캐릭터 카드 */
+  .char-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;
+  }
+  .char-card{
+    background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--dot);
+    border-radius:10px;padding:14px 16px;
+  }
+  .char-card .head{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:#fff;}
+  .char-card .dot{width:9px;height:9px;border-radius:50%;background:var(--dot);flex:none;}
+  .char-card .elem{color:var(--dot);font-weight:700;font-size:12.5px;margin-left:auto;}
+  .char-card p{margin:8px 0 0;font-size:13px;color:var(--text-dim);}
+  .char-card .evo{
+    margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
+    font-size:12.5px;color:var(--text-dim);
+  }
+  .char-card .evo b{color:var(--text);}
+  .char-card .num{font-variant-numeric:tabular-nums;color:var(--text);}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:fixed;}
+  thead th{
+    text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--text-dim);padding:0 10px 8px;border-bottom:1px solid var(--line);
+    font-weight:700;
+  }
+  tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  .wname{font-weight:700;color:#fff;}
+  .wname .icon{font-size:16px;margin-right:8px;}
+  .wdesc{color:var(--text-dim);font-size:13px;}
+  .wnum{font-variant-numeric:tabular-nums;color:var(--text-dim);font-size:12.5px;}
+  .tag{
+    display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;
+    background:var(--accent-dim);color:var(--accent);white-space:nowrap;margin-left:6px;
+  }
+  .table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+  .table-wrap table{min-width:560px;}
+  .table-wrap th:nth-child(1), .table-wrap td:nth-child(1){width:25%;}
+  .table-wrap th:nth-child(2), .table-wrap td:nth-child(2){width:25%;}
+  .table-wrap th:nth-child(3), .table-wrap td:nth-child(3){width:50%;}
+  .table-wrap thead th:first-child, .table-wrap tbody td:first-child{padding-left:16px;}
+  .table-wrap thead th:last-child, .table-wrap tbody td:last-child{padding-right:16px;}
+
+  .callout{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;
+  }
+  .callout .stat-row{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;
+  }
+  .stat-chip{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 13px;font-size:12.5px;color:var(--text-dim);
+  }
+  .stat-chip b{display:block;color:var(--text);font-size:15px;font-variant-numeric:tabular-nums;margin-bottom:2px;}
+  .callout p{font-size:13.5px;color:var(--text-dim);margin:10px 0 0;}
+  .callout p:first-child{margin-top:0;}
+  .callout ul{margin:10px 0 0;padding-left:18px;font-size:13.5px;color:var(--text-dim);}
+  .callout li{margin-bottom:4px;}
+  .callout li b{color:var(--text);}
+
+  .companion-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;
+  }
+  .companion-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  }
+  .companion-card .head{font-weight:700;color:#fff;font-size:14.5px;display:flex;align-items:center;gap:7px;}
+  .companion-card p{margin:8px 0 0;font-size:13px;color:var(--text-dim);}
+
+  footer{
+    margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--text-dim);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Game Data Reference</div>
+  <h1>백제어택 데이터 시트</h1>
+  <p class="lede">
+    무기·패시브·캐릭터 특성을 하나씩 직접 먹어보지 않아도 알 수 있도록 정리했습니다.
+    수치는 <b>레벨 1 기준</b>이며, 강화할 때마다 아래 공식대로 성장합니다.
+  </p>
+  <div class="noticebox">
+    <b>먼저 알아두실 것</b> — 5명의 캐릭터는 <b>기본 스탯과 무기 강화 방식이 전부 동일</b>합니다.
+    캐릭터마다 다른 건 겉모습과 <b>기본무기(우이)의 원소 특성</b>, 그리고 필드에 등장하는 컴패니언 동물의 외형뿐입니다.
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>캐릭터별 기본무기(우이) 원소</h2>
+      <span class="sec-sub">명중 시 7.5% 확률로 발동</span>
+    </div>
+    <div class="char-grid">
+      <div class="char-card" style="--dot:var(--fire)">
+        <div class="head"><span class="dot"></span>조타<span class="elem">화상</span></div>
+        <p>2초간 지속피해 (초당 <span class="num">42%</span>, 합계 <span class="num">84%</span> 추가 데미지)</p>
+        <div class="evo"><b>진화 후:</b> 화상으로 죽은 적 주변으로 불이 옮겨붙음</div>
+      </div>
+      <div class="char-card" style="--dot:var(--water)">
+        <div class="head"><span class="dot"></span>밍<span class="elem">빙결</span></div>
+        <p>즉시 <span class="num">85%</span> 추가 데미지 + 0.5초간 완전 정지</p>
+        <div class="evo"><b>진화 후:</b> 주변 반경 90 적들도 함께 0.5초 슬로우(50%) + <span class="num">40%</span> 경감 데미지</div>
+      </div>
+      <div class="char-card" style="--dot:var(--wind)">
+        <div class="head"><span class="dot"></span>리뿌<span class="elem">밀려남</span></div>
+        <p>뒤로 밀려나며, 부딪힌 다른 적에게 <span class="num">183%</span> 추가 데미지 (충돌 대상 있을 때만)</p>
+        <div class="evo"><b>진화 후:</b> 밀치기 대신 회오리 소환 — 주변 최대 3명을 빨아들이며 1.2초간 지속피해(초당 24%)</div>
+      </div>
+      <div class="char-card" style="--dot:var(--bolt)">
+        <div class="head"><span class="dot"></span>얌<span class="elem">연쇄</span></div>
+        <p>근처 다른 적 1명에게 <span class="num">42%</span> 추가 데미지</p>
+        <div class="evo"><b>진화 후:</b> 진화할 때마다 연쇄 대상 +1명 (최대 5명), 순서가 뒤로 갈수록 데미지 <span class="num">80%</span>씩 체감</div>
+      </div>
+      <div class="char-card" style="--dot:var(--earth)">
+        <div class="head"><span class="dot"></span>쩨로밍<span class="elem">충격파</span></div>
+        <p>반경 40 내 최대 3명에게 각 <span class="num">44%</span> 추가 데미지</p>
+        <div class="evo"><b>진화 후:</b> 충격파 반경이 40 → 60으로 확대</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>무기 목록</h2>
+      <span class="sec-sub">기본무기 포함 전체 7종</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>무기</th><th>효과</th><th>레벨 1 수치</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="wname"><span class="icon">🔥</span>우이<span class="tag">기본무기</span></td>
+            <td class="wdesc">가장 가까운 적에게 화염 자동 발사. 캐릭터별 원소 특성 보유(위 표 참고)</td>
+            <td class="wnum">데미지 8 · 쿨타임 0.6초</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">😋</span>오이쉬에</td>
+            <td class="wdesc">엄지를 포물선으로 던져 착탄 지점에 광역 피해</td>
+            <td class="wnum">데미지 14 · 쿨타임 1.4초 · 반경 88</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">💿</span>리센느아세요?</td>
+            <td class="wdesc">주위를 도는 CD, 최대 6개까지 증가. 명중 시 출혈 부여</td>
+            <td class="wnum">데미지 4.4 · 쿨타임 0.25초 · 출혈 초당 2 (3초)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">✋</span>그만 좀 봅시다<span class="tag">강화 상한 6</span></td>
+            <td class="wdesc">근접 범위 즉시 피해 + 밀치기 (재적용까지 0.7초 딜레이)</td>
+            <td class="wnum">데미지 3 · 쿨타임 0.4초 · 범위 60</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🥢</span>에디슨젓가락</td>
+            <td class="wdesc">전방 부채꼴(약 112˚) 범위 다수 적 동시 타격</td>
+            <td class="wnum">데미지 11 · 쿨타임 0.9초 · 범위 80</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">👶</span>거제의 딸<span class="tag">강화 상한 6</span></td>
+            <td class="wdesc">주변 적 이동속도 감소 + 약한 피해 (넉백 없음)</td>
+            <td class="wnum">데미지 2 · 쿨타임 0.5초 · 범위 77</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🪃</span>안원잘부메랑</td>
+            <td class="wdesc">가장 가까운 적에게 던져 타원을 그리며 돌아옴. 명중 시 0.35초 경직</td>
+            <td class="wnum">데미지 10 · 쿨타임 1.1초 · 사거리 280</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>패시브 목록</h2>
+      <span class="sec-sub">전체 8종, 스택마다 아래 수치만큼 누적 증가</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>패시브</th><th>효과</th><th>스택당 증가량</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="wname"><span class="icon">🐦</span>타조</td>
+            <td class="wdesc">이동속도 증가</td>
+            <td class="wnum">×1.10 (상한 396)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🦪</span>거제굴톤</td>
+            <td class="wdesc">최대 체력 증가</td>
+            <td class="wnum">+40</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🤱</span>덕연이딸</td>
+            <td class="wdesc">무적 실드 최대 개수 증가 (충전식, 자동 재충전)</td>
+            <td class="wnum">+1개 (최대 5), 재충전 시간 -2초 (최초 20초 → 최소 10초)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🍚</span>밥은 줍니까?</td>
+            <td class="wdesc">경험치 젬 흡수 범위 증가</td>
+            <td class="wnum">×1.20 (상한 150)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🚀</span>거제 폭격기</td>
+            <td class="wdesc">모든 무기 쿨타임 감소</td>
+            <td class="wnum">-8%p (상한 50%)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">👊</span>거제 불주먹</td>
+            <td class="wdesc">모든 무기 피해량 증가</td>
+            <td class="wnum">+10%p (상한 +100%)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🖥️</span>싱글코어</td>
+            <td class="wdesc">경험치 젬 드랍량 증가</td>
+            <td class="wnum">+20%p (상한 +150%)</td>
+          </tr>
+          <tr>
+            <td class="wname"><span class="icon">🍕</span>도미노피자</td>
+            <td class="wdesc">초당 체력 자동 회복</td>
+            <td class="wnum">+0.5/초 (보스러시는 +1), 최대 5</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>무기 강화 공식</h2>
+      <span class="sec-sub">레벨업 카드로 강화할 때마다 적용</span>
+    </div>
+    <div class="callout">
+      <p>대부분의 무기는 레벨업할 때마다 아래 배율이 그대로 곱해집니다.</p>
+      <div class="stat-row">
+        <div class="stat-chip"><b>× 1.35</b>데미지</div>
+        <div class="stat-chip"><b>× 0.88</b>쿨타임 (최소 0.1초)</div>
+        <div class="stat-chip"><b>× 1.16</b>사거리 / 범위</div>
+        <div class="stat-chip"><b>× 1.08</b>궤도 반경 (리센느아세요?)</div>
+      </div>
+      <ul style="margin-top:16px;">
+        <li><b>우이 · 안원잘부메랑</b>은 예외입니다 — 먼저 발사 개수가 3개까지 늘어난 뒤, 이후로는 데미지/쿨타임이 번갈아 강화됩니다.</li>
+        <li><b>그만 좀 봅시다 · 거제의 딸</b>은 강화 상한이 <b>레벨 6</b>입니다. 나머지 무기는 전부 <b>레벨 8</b>까지 강화 가능합니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>진화 시스템</h2>
+      <span class="sec-sub">경험치 바 아래 진화 게이지가 가득 차면 발동</span>
+    </div>
+    <div class="callout">
+      <div class="stat-row">
+        <div class="stat-chip"><b>600</b>최초 요구 게이지</div>
+        <div class="stat-chip"><b>+150</b>회차마다 요구량 증가</div>
+        <div class="stat-chip"><b>15초</b>진화 지속시간</div>
+      </div>
+      <p>진화가 발동하면 <b>15초간 완전 무적</b> 상태가 되고, 우이가 5방향으로 동시 발사되며 일반 백제자객을
+        원샷(발사체 하나당 최대 2킬)으로 처치합니다. 이 15초 동안 처치한 적은 다음 진화 게이지에 반영되지 않습니다.</p>
+      <p>진화할 때마다 <b>치명타 확률 +5%p, 치명타 피해 +10%p</b>씩 최대 5스택까지 누적되며(최초 진화 시 10%/+50%
+        기본 부여, 5스택 도달 시 30%/+90%), 원소별 전용 강화 효과(위 캐릭터 표의 "진화 후" 항목)는 <b>최초 진화 때 한 번만</b> 적용됩니다
+        — 단, <b>얌의 연쇄 대상 수</b>만 예외로 진화 스택을 얻을 때마다 계속 늘어납니다(최대 5명).</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>컴패니언(동물) 효과</h2>
+      <span class="sec-sub">필드에 랜덤 등장, 먹으면 즉시 발동</span>
+    </div>
+    <div class="companion-grid">
+      <div class="companion-card">
+        <div class="head">🐘 얌</div>
+        <p>화면에 있는 일반 백제자객을 전부 제거 (보스는 제외)</p>
+      </div>
+      <div class="companion-card">
+        <div class="head">🐑 리뿌</div>
+        <p>화면에 떠 있는 경험치 젬을 전부 즉시 흡수</p>
+      </div>
+      <div class="companion-card">
+        <div class="head">🦭 밍</div>
+        <p>랜덤 스킬 1~3개 획득 (무기/패시브 강화 상한 무시)</p>
+      </div>
+      <div class="companion-card">
+        <div class="head">🐻 쩨로밍</div>
+        <p>최대 체력의 15%를 즉시 회복</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    백제어택 · 위 수치는 업데이트에 따라 조정될 수 있습니다.
+  </footer>
+</div>
+</body>
+</html>
