@@ -2673,7 +2673,7 @@ function spawnCarBoss() {
     x: spawn.x, y: spawn.y - 30, text: '🚨 폭주 차량 출현!',
     life: 2.2, maxLife: 2.2, size: 15, color: '#ff5252',
   });
-  playSfx('carAppearVoice');
+  playSfx('carAppearVoice', 0.24); // 기존(0.8) 대비 30% 볼륨
   spawnMiniCar(carIsFirstEncounter);
 }
 
@@ -2991,7 +2991,7 @@ function updateCalliAttacks(e, dt) {
       jitter: Array.from({ length: lineSteps }, () => rand(-4, 4)),
       opacityN: Array.from({ length: lineSteps }, () => rand(0.8, 1)),
     });
-    playSfx('calliLineVoice');
+    playSfx('calliLineVoice', 0.24); // 기존(0.8) 대비 30% 볼륨
   }
 
   e.calliSigTimer -= dt;
@@ -3046,7 +3046,7 @@ function startCalliSignature(e) {
   }
   e.calliSignature = { timer: 1.6, targets };
   floatingTexts.push({ x: e.x, y: e.y - 70, text: '수적천석', life: 1.2, maxLife: 1.2, size: 24, color: '#4e342e' });
-  playSfx('calliSigVoice');
+  playSfx('calliSigVoice', 0.24); // 기존(0.8) 대비 30% 볼륨
 }
 function updateCalliSignature(e, dt) {
   const s = e.calliSignature;
@@ -3185,7 +3185,7 @@ function updateCarBoss(e, dt) {
       e.carStateTimer = 0.6;
       if (spawn.dirX !== 0) e.facing = spawn.dirX < 0 ? -1 : 1;
       floatingTexts.push({ x: e.x, y: e.y - 30, text: '🚨 폭주 차량 재등장!', life: 2.0, maxLife: 2.0, size: 15, color: '#ff5252' });
-      playSfx('carAppearVoice');
+      playSfx('carAppearVoice', 0.24); // 기존(0.8) 대비 30% 볼륨
     }
   }
 }
