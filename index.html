@@ -4598,6 +4598,10 @@ function applyElementProc(element, e, baseDmg, b) {
         if (ne === e || dist(e, ne) >= 90) continue;
         ne.slowTimer = Math.max(ne.slowTimer || 0, 0.5);
         ne.slowFactor = Math.min(ne.slowFactor ?? 1, 0.5);
+        // 슬로우만 걸던 걸 - 본체(85%)보다 경감된 데미지(40%)도 같이 들어가도록 추가
+        const splashDmg = baseDmg * 0.4 * dmgMult;
+        ne.hp -= splashDmg;
+        spawnDamageNumber(ne.x, ne.y, splashDmg, ne.isElite ? 'elite' : 'normal');
         frostFx.push({ x: ne.x, y: ne.y, life: 0.4, maxLife: 0.4 });
       }
     }
@@ -4632,14 +4636,16 @@ function applyElementProc(element, e, baseDmg, b) {
       }
     }
   } else if (element === 'lightning') {
-    // 연쇄: 근처 다른 적 1명(진화 시 2명)에게 추가 타격
+    // 연쇄: 근처 다른 적 1명(진화하면 업그레이드할 때마다 +1명, 최대 5명)에게 추가 타격.
+    // 연쇄 순서가 뒤로 갈수록 데미지가 조금씩 줄어듦(80%씩 체감)
     const nearby = queryEnemiesNear(e.x, e.y, 150).filter(o => o !== e);
     nearby.sort((a2, b2) => dist(e, a2) - dist(e, b2));
     const n = b.chainCount || 1;
     for (let i = 0; i < Math.min(n, nearby.length); i++) {
       const t = nearby[i];
-      t.hp -= baseDmg * 0.42 * dmgMult;
-      spawnDamageNumber(t.x, t.y, baseDmg * 0.42 * dmgMult, t.isElite ? 'elite' : 'normal');
+      const chainDmg = baseDmg * 0.42 * Math.pow(0.8, i) * dmgMult;
+      t.hp -= chainDmg;
+      spawnDamageNumber(t.x, t.y, chainDmg, t.isElite ? 'elite' : 'normal');
       spawnParticles(t.x, t.y, '#ffee58', 3);
       if (b.chainCount > 1) {
         lightningFx.push({ x: t.x, y: t.y, life: 0.35, maxLife: 0.35 });
@@ -5276,16 +5282,17 @@ function applyChoice(opt, ignoreCap) {
       if (wooie.evolveStacks === 1) {
         wooie.critChance = 0.10;
         wooie.critDamageMult = 0.50;
-        // 원소별 전용 강화는 첫 진화 시 1회만 적용
+        // 원소별 전용 강화는 첫 진화 시 1회만 적용 (연쇄만 예외 - 아래에서 스택마다 갱신)
         if (wooie.element === 'fire') wooie.fireSpreadOnKill = true;
         else if (wooie.element === 'water') wooie.waterSlowNearby = true;
         else if (wooie.element === 'wind') wooie.windDoubleBounce = true;
-        else if (wooie.element === 'lightning') wooie.chainCount = 2;
         else if (wooie.element === 'earth') wooie.shockwaveRadius = 60;
       } else {
         wooie.critChance = Math.min(0.30, wooie.critChance + 0.05);
         wooie.critDamageMult = Math.min(0.90, wooie.critDamageMult + 0.10);
       }
+      // 연쇄(얌)는 진화 스택을 얻을 때마다 연쇄 대상이 1명씩 늘어남 (최대 5명)
+      if (wooie.element === 'lightning') wooie.chainCount = Math.min(5, 1 + wooie.evolveStacks);
     }
   }
   updateSkillHud();
