@@ -921,7 +921,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">신규버전이 업데이트 되었습니다.</span></button>
-    <button class="noticeVersionBtn" data-version="hotfix260901">핫픽스 안내 (260901)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260902">핫픽스 안내 (260902)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260901">핫픽스 안내 (260901)</button>
     <button class="noticeVersionBtn" data-version="notice_0.9.7_preview">0.9.7 업데이트 안내<span class="sub">꾸꾸꾸와 센세(260831)</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260827">핫픽스 안내 (260827)</button>
     <button class="noticeVersionBtn" data-version="0.9.6">0.9.6 업데이트<span class="sub">보스전 전용 하드코어 모드 베타버전 오픈!</span></button>
@@ -2466,10 +2467,10 @@ function enemyStatsForTime(t) {
     dmg = Math.round(dmg * earlyEase);
   }
   // 티어가 3분(180초)에서 최대치로 고정된 뒤에도, 장기 플레이가 계속 팽팽하도록
-  // 시간에 비례해 계속 성장시킴 (1분마다 약 +11%, 기존 8%보다 더 가파르게) - 경험치 보상도 동일하게 적용해서
+  // 시간에 비례해 계속 성장시킴 (1분마다 약 +10%) - 경험치 보상도 동일하게 적용해서
   // 후반부에 몹은 세지는데 경험치는 그대로인 문제를 방지
   if (t > 180) {
-    const growth = Math.pow(1.11, (t - 180) / 60); // 기존 1.08 -> 1.11로 중후반 압박 강화
+    const growth = Math.pow(1.10, (t - 180) / 60); // 0.9.7의 1.11이 너무 가팔라 체감난이도 상승 피드백 → 1.10으로 완화
     hp = Math.round(hp * growth);
     dmg = Math.round(dmg * growth);
     xpVal = Math.round(xpVal * growth);
@@ -6719,7 +6720,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = 'hotfix260901';
+const LATEST_NOTICE_VERSION = 'hotfix260902';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -6794,6 +6795,18 @@ const NOTICE_CONTENT = {
       { text: '🐛 버그 수정 / 안정성 향상' },
       { text: '레벨업 시 카드가 중복으로 뜨던 문제 수정' },
       { text: '초장시간 플레이 시 몹 능력치 폭증으로 게임이 멈추던 프리징 버그 수정' },
+    ],
+  },
+  'hotfix260902': {
+    title: '핫픽스 안내 (260902)',
+    items: [
+      { text: '🥷🏼 몹 성장곡선을 완화 하였습니다. 후반부 성장폭이 기존 대비 약 14% 둔화됩니다.' },
+      { gap: true },
+      { text: '🎙️ 꾸꾸꾸 보스전에 재생되던 음악을 보스전이 끝나면 바로 종료되도록 조정하였습니다.' },
+      { gap: true },
+      { text: '📕 타이틀 화면 좌측 하단에 유저 플레이가이드를 추가했습니다.' },
+      { gap: true },
+      { text: '플레이 후 자유게시판에 의견을 달아주시면 검토 후 반영하여 즐거운 플레이 경험을 얻으실 수 있도록 하겠습니다. 백제어택을 즐겨주셔서 감사합니다.🐹' },
     ],
   },
   'hotfix260901': {
