@@ -1836,12 +1836,6 @@ window.onYouTubeIframeAPIReady = function () {
       },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.ENDED) {
-          if (gguMusicPendingReturn) {
-            // 꾸꾸꾸 전용곡을 끝까지 다 들려준 뒤 - 이제 랜덤 재생 목록으로 복귀
-            gguMusicPendingReturn = false;
-            ytPlayer.loadPlaylist({ playlist: YT_VIDEO_IDS, index: pickRandomVideoIndex(-1) });
-            return;
-          }
           // 곡이 끝나면 랜덤 순서로 다음 곡 재생 (전체 무한 반복)
           const idx = ytPlayer.getPlaylistIndex();
           const next = pickRandomVideoIndex(idx);
@@ -1893,21 +1887,13 @@ function startGguMusic() {
   if (!bgmEnabled || !ytReady) return;
   ytPlayer.loadVideoById(GGU_YT_VIDEO_ID);
 }
-// 다음 판 시작 등, 지난 판의 잔여 상태를 즉시 정리해야 할 때 쓰는 강제 원상복구.
-// (보스를 실제로 처치한 순간엔 이걸 바로 부르지 않고 scheduleGguMusicReturn을 사용 - 아래 참고)
+// 다음 판 시작, 그리고 보스 처치 시 모두 이걸로 즉시 원상복구한다.
+// 전용곡(GGU_YT_VIDEO_ID)은 YT_VIDEO_IDS 목록에 들어있지 않아서 복귀 후 랜덤 재생에
+// 다시 뽑힐 일도 없다 - 보스가 다시 등장해야만 재생됨.
 function endGguMusic() {
   gguMusicActive = false;
-  gguMusicPendingReturn = false;
   if (!bgmEnabled || !ytReady) return;
   ytPlayer.loadPlaylist({ playlist: YT_VIDEO_IDS, index: pickRandomVideoIndex(-1) });
-}
-// 보스전 종료 시: 전용곡을 바로 끊지 않고 끝까지 들려준 뒤, 자연스럽게 끝나는 시점(onStateChange의
-// ENDED)에 랜덤 재생 목록으로 복귀한다. 애초에 전용곡(GGU_YT_VIDEO_ID)은 YT_VIDEO_IDS 목록에
-// 들어있지 않아서 복귀 후 랜덤 재생에 다시 뽑힐 일도 없다 - 보스가 다시 등장해야만 재생됨.
-function scheduleGguMusicReturn() {
-  gguMusicActive = false;
-  if (!bgmEnabled || !ytReady) { gguMusicPendingReturn = false; return; }
-  gguMusicPendingReturn = true;
 }
 
 // ---------- BGM/효과음 온오프 버튼 ----------
@@ -2210,7 +2196,6 @@ let bossCycleIndex, bossCycleTimer, bossLoopCount;
 // "climax" 연출(엄폐물 등장 + 화면 전체 파동)이 발동한다.
 let soundBossActive = false;
 let gguMusicActive = false; // 꾸꾸꾸 전용 BGM이 걸려있는지 - 중간에 죽어도 다음 판 시작 시 원상복구하기 위한 플래그
-let gguMusicPendingReturn = false; // 보스 처치는 됐지만 전용곡이 아직 끝까지 안 나온 상태 - 곡이 자연스럽게 끝나면 그때 랜덤 목록으로 복귀
 let noteBullets = [];
 let climaxObstacles = [];
 let gguPulseFx = [];
@@ -2882,7 +2867,7 @@ function fireGguPulse(e) {
     return;
   }
   if (player.invuln > 0 || player.specialInvulnTimer > 0) return;
-  if (consumePlayerShield(player.x, player.y)) { player.invuln = 0.5; return; }
+  if (consumePlayerShield(player.x, player.y)) { return; }
   const dmg = Math.round(e.dmg * 2.2);
   player.hp -= dmg;
   player.invuln = 0.5;
@@ -2924,7 +2909,7 @@ function updateSoundBoss(e, dt) {
 
   if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
     if (consumePlayerShield(player.x, player.y)) {
-      player.invuln = 0.5;
+      // (무적시간은 consumePlayerShield 내부에서 설정)
     } else {
       player.hp -= e.dmg;
       player.invuln = 0.5;
@@ -2979,7 +2964,7 @@ function updateCalliAttacks(e, dt) {
       if (diff > Math.PI) diff = Math.PI * 2 - diff;
       if (d < range + player.r && diff < Math.PI / 3 && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
         if (consumePlayerShield(player.x, player.y)) {
-          player.invuln = 0.5;
+          // (무적시간은 consumePlayerShield 내부에서 설정)
         } else {
           const dmg = Math.round(e.dmg * 0.9);
           player.hp -= dmg;
@@ -3079,7 +3064,7 @@ function updateCalliSignature(e, dt) {
     spawnParticles(t.x, t.y, '#2b2b2b', 20);
     if (dist(player, t) < 130 && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         const dmg = Math.round(e.dmg * 2.5);
         player.hp -= dmg;
@@ -3115,7 +3100,7 @@ function updateCarBoss(e, dt) {
     // 직접 충돌 데미지 (일반 접촉 피해와 동일하게 무적시간/실드 규칙 존중)
     if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         player.hp -= e.dmg;
         player.invuln = 0.5;
@@ -3178,7 +3163,7 @@ function updateCarBoss(e, dt) {
     // 플레이어 접촉 피해는 장애물과 무관하게 항상 체크 (charging 구간과 동일 규칙)
     if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         player.hp -= e.dmg;
         player.invuln = 0.5;
@@ -3303,7 +3288,7 @@ function updateMiniCarWander(e, dt) {
   // 접촉 피해 (일반 접촉 규칙과 동일하게 무적시간/실드 존중)
   if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
     if (consumePlayerShield(player.x, player.y)) {
-      player.invuln = 0.5;
+      // (무적시간은 consumePlayerShield 내부에서 설정)
     } else {
       const dmg = e.dmg;
       player.hp -= dmg;
@@ -3349,7 +3334,7 @@ function updateMiniCarDash(e, dt) {
 
   if (!e.dashHit && dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
     if (consumePlayerShield(player.x, player.y)) {
-      player.invuln = 0.5;
+      // (무적시간은 consumePlayerShield 내부에서 설정)
     } else {
       player.hp -= e.dmg;
       player.x += e.dashDirX * 70; // 큰 차 돌진 경로 쪽으로 유도하는 넉백
@@ -3916,7 +3901,7 @@ function update(dt) {
 
     if (dist(e, player) < e.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         const dmg = e.dmg;
         player.hp -= dmg;
@@ -4002,7 +3987,7 @@ function update(dt) {
     th.spin += dt * 10;
     if (!th.hit && dist(th, player) < th.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         const dmg = th.dmg;
         player.hp -= dmg;
@@ -4023,7 +4008,7 @@ function update(dt) {
     kn.spin += dt * 16;
     if (!kn.hit && dist(kn, player) < kn.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         const dmg = kn.dmg;
         player.hp -= dmg;
@@ -4044,7 +4029,7 @@ function update(dt) {
     nb.spin += dt * 8;
     if (!nb.hit && dist(nb, player) < nb.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         const dmg = nb.dmg;
         player.hp -= dmg;
@@ -4083,7 +4068,7 @@ function update(dt) {
           line.tickAccum -= 0.4;
           if (player.invuln <= 0 && player.specialInvulnTimer <= 0) {
             if (consumePlayerShield(player.x, player.y)) {
-              player.invuln = 0.5;
+              // (무적시간은 consumePlayerShield 내부에서 설정)
             } else {
               player.hp -= line.dmg;
               player.invuln = 0.5;
@@ -4105,7 +4090,7 @@ function update(dt) {
     s.traveled += Math.hypot(moveX, moveY);
     if (!s.hit && dist(s, player) < s.r + player.r && player.invuln <= 0 && player.specialInvulnTimer <= 0) {
       if (consumePlayerShield(player.x, player.y)) {
-        player.invuln = 0.5;
+        // (무적시간은 consumePlayerShield 내부에서 설정)
       } else {
         player.hp -= s.dmg;
         player.invuln = 0.5;
@@ -4417,14 +4402,13 @@ function update(dt) {
       if (e.isElite) {
         if (e.isBoss) advanceBossCycle(); // 꾸대표/피디니무/연수아저씨/꾸꾸꾸 처치 -> 순번 이동 + 쿨다운 시작
         if (e.variant === 'ggu') {
-          // 꾸꾸꾸 처치: 몹 리젠 재개 + climax/아레나 잔여물 정리. 음악은 바로 끊지 않고
-          // 지금 나오는 전용곡을 끝까지 들려준 뒤(scheduleGguMusicReturn) 랜덤 목록으로 복귀
+          // 꾸꾸꾸 처치: 몹 리젠 재개 + climax/아레나 잔여물 정리 + 음악 즉시 원상복구
           soundBossActive = false;
           climaxObstacles = [];
           noteBullets = [];
           gguArenaActive = false;
           gguArenaCenter = null;
-          scheduleGguMusicReturn();
+          endGguMusic();
         }
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
         spawnParticles(e.x, e.y, '#ffd54f', 14);
@@ -4545,15 +4529,23 @@ function update(dt) {
   damageNumbers = damageNumbers.filter(dn => dn.life > 0);
 
   // 3번 보스(폭주 차량)가 질주하며 남긴 불 자국: 지속시간 동안 겹치면 도트 데미지
+  // (다른 모든 피격과 동일하게 무적시간/실드 규칙을 존중 - 예전엔 이것만 예외로 그대로 뚫고 들어갔음)
   for (const f of fireTrail) {
     f.life -= dt;
     if (dist(f, player) < f.r + player.r) {
       f.tickAccum += dt;
       if (f.tickAccum >= 0.5) {
         f.tickAccum -= 0.5;
-        player.hp -= f.dmg;
-        spawnParticles(player.x, player.y, '#ff6d00', 3);
-        spawnDamageNumber(player.x, player.y, f.dmg, 'player');
+        if (player.invuln <= 0 && player.specialInvulnTimer <= 0) {
+          if (consumePlayerShield(player.x, player.y)) {
+            // (무적시간은 consumePlayerShield 내부에서 설정)
+          } else {
+            player.hp -= f.dmg;
+            player.invuln = 0.5;
+            spawnParticles(player.x, player.y, '#ff6d00', 3);
+            spawnDamageNumber(player.x, player.y, f.dmg, 'player');
+          }
+        }
       }
     }
   }
@@ -4896,12 +4888,16 @@ function spawnDamageNumber(x, y, amount, kind) {
 }
 
 // 덕연이딸 실드: 보유 중이면 이번 피격을 완전히 무효화(1회 무적 판정)하고 1개 소모
+// 실드로 막았을 때는 일반 피격(0.5초)보다 무적시간을 조금 더 길게 줘서 뒤이어 바로 또
+// 맞는 억울한 상황을 줄여준다.
+const SHIELD_HIT_INVULN = 0.8;
 function consumePlayerShield(x, y) {
   // 각성으로 얻은 보너스 실드(소모형, 안 채워짐)를 먼저 쓰고, 다 떨어지면 원래 보유한
   // 충전형 실드(shieldCount)를 쓴다.
   if (player.shieldBonus > 0 || player.shieldCount > 0) {
     if (player.shieldBonus > 0) player.shieldBonus--;
     else player.shieldCount--;
+    player.invuln = Math.max(player.invuln, SHIELD_HIT_INVULN);
     spawnParticles(x, y, '#4fc3f7', 14);
     floatingTexts.push({
       x, y: y - 24, text: '🛡️ 방어!',
