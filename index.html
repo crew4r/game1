@@ -4890,7 +4890,7 @@ function spawnDamageNumber(x, y, amount, kind) {
 // 덕연이딸 실드: 보유 중이면 이번 피격을 완전히 무효화(1회 무적 판정)하고 1개 소모
 // 실드로 막았을 때는 일반 피격(0.5초)보다 무적시간을 조금 더 길게 줘서 뒤이어 바로 또
 // 맞는 억울한 상황을 줄여준다.
-const SHIELD_HIT_INVULN = 0.8;
+const SHIELD_HIT_INVULN = 1.0;
 function consumePlayerShield(x, y) {
   // 각성으로 얻은 보너스 실드(소모형, 안 채워짐)를 먼저 쓰고, 다 떨어지면 원래 보유한
   // 충전형 실드(shieldCount)를 쓴다.
