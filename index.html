@@ -2178,7 +2178,7 @@ let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncount
 let carBossEncounterCount, fireTrail;
 let generalSpawnTimer; // 백제장군(엘리트몹): 경과 시간에 따라 동시 생존 상한이 늘어나며 랜덤 간격으로 계속 등장 (getGeneralMaxCount 참고)
 let generalSlashes; // 백제장군이 휘두를 때 날아가는 검기 이펙트
-let gameTime, growthTime, killCount, spawnTimer, running, lastTs;
+let gameTime, growthTime, killCount, killScoreAccum, spawnTimer, running, lastTs;
 let postBossGraceTimer;
 let evoGauge; // 진화 게이지: 일반 몹 처치 +1(보스전 중엔 미카운트), 백제장군 처치 +5, 보스 처치 +10. evolutionGaugeMax에서 가득 차면 진화 발동 후 0으로 리셋
 const EVOLUTION_GAUGE_BASE = 600;
@@ -2363,6 +2363,7 @@ function initGame() {
   growthTime = 0;
   postBossGraceTimer = 0;
   killCount = 0;
+  killScoreAccum = 0;
   evoGauge = 0;
   evolutionCount = 0;
   evolutionGaugeMax = EVOLUTION_GAUGE_BASE;
@@ -4388,6 +4389,8 @@ function update(dt) {
     if (e.hp <= 0) {
       remove = true;
       killCount++;
+      killScoreAccum += killScoreForTime(growthTime); // 스폰 밀도 완화로 줄어든 후반부 처치 속도만큼 킬당 점수를 보정
+      if (e.isBoss) killScoreAccum += BOSS_KILL_SCORE_BONUS; // 보스(꾸대표/피디니무/연수아저씨/꾸꾸꾸) 처치 시 추가 점수
       if (evolutionActiveTimer <= 0) { // 진화 버스트 중 처치는 게이지에 영향 없음
         if (e.isBoss) {
           evoGauge = Math.min(evolutionGaugeMax, evoGauge + 10);
@@ -6477,8 +6480,22 @@ function loop(ts) {
   if (running && !paused) requestAnimationFrame(loop);
 }
 
+// 260902 밀도 완화(간격 하한 0.32->0.35, 버스트 상한 11->10) 이후 후반부 처치 속도가 떨어져 점수도 같이
+// 떨어지는 부작용이 생겼다. 옛 스폰 속도 대비 새 스폰 속도의 저하분만큼 킬 점수를 보정해서, 몹은 덜 쏟아지되
+// 후반부 킬 하나의 가치를 올려 점수 곡선을 원래대로 되살린다.
+const BOSS_KILL_SCORE_BONUS = 300; // 보스 처치 시 추가 점수 (자잘한 보상, 총점 대비 소폭)
+function killScoreForTime(t) {
+  const intervalOld = Math.max(0.32, 1.4 - t / 90);
+  const intervalNew = Math.max(0.35, 1.4 - t / 90);
+  const burstOld = Math.min(11, 1 + Math.floor(t / 55));
+  const burstNew = Math.min(10, 1 + Math.floor(t / 55));
+  const rateOld = burstOld / intervalOld;
+  const rateNew = burstNew / intervalNew;
+  return 12 * (rateOld / rateNew);
+}
+
 function computeScore() {
-  return Math.floor(gameTime) * 1 + killCount * 12 + level * 40;
+  return Math.floor(gameTime) * 1 + killScoreAccum + level * 40;
 }
 
 let lastScore = 0;
