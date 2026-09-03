@@ -798,7 +798,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
       <button class="lbTabBtn" data-platform="pc">PC</button>
       <button class="lbTabBtn" data-platform="mobile">모바일</button>
     </div>
-    <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
+    <h4>👑 <span class="monthlyTop3Label"></span> TOP 3</h4>
     <ol id="allTimeList"></ol>
     <h4>📅 이번 주 TOP 20 (매주 월요일 초기화)</h4>
     <ol id="leaderboardList"></ol>
@@ -910,7 +910,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     <button class="lbTabBtn" data-platform="pc">PC</button>
     <button class="lbTabBtn" data-platform="mobile">모바일</button>
   </div>
-  <h4>👑 명예의 전당 TOP 3 (역대 최고 기록)</h4>
+  <h4>👑 <span class="monthlyTop3Label"></span> TOP 3</h4>
   <ol id="startAllTimeList"></ol>
   <h4>📅 이번 주 TOP 20 (매주 월요일 초기화)</h4>
   <ol id="startLeaderboardList"></ol>
@@ -921,7 +921,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">신규버전이 업데이트 되었습니다.</span></button>
-    <button class="noticeVersionBtn" data-version="hotfix260902">핫픽스 안내 (260902)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260903">핫픽스 안내 (260903)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260902">핫픽스 안내 (260902)</button>
     <button class="noticeVersionBtn" data-version="hotfix260901">핫픽스 안내 (260901)</button>
     <button class="noticeVersionBtn" data-version="notice_0.9.7_preview">0.9.7 업데이트 안내<span class="sub">꾸꾸꾸와 센세(260831)</span></button>
     <button class="noticeVersionBtn" data-version="hotfix260827">핫픽스 안내 (260827)</button>
@@ -3661,13 +3662,13 @@ function update(dt) {
     spawnTimer -= dt;
     const MOBILE_SPAWN_INTERVAL_MULT = 1.15; // 모바일은 스폰 간격을 15% 더 여유롭게
     const MOBILE_BURST_MULT = 0.85;          // 모바일은 버스트량도 15% 낮게
-    const spawnIntervalBase = Math.max(0.32, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1)
+    const spawnIntervalBase = Math.max(0.35, 1.4 - growthTime / 90) * (isMobileLayout ? MOBILE_SPAWN_INTERVAL_MULT : 1)
       * (DIFFICULTY_SETTINGS[selectedDifficulty] || DIFFICULTY_SETTINGS.hard).spawnIntervalMult // 초반 간격을 늘려 완화(1.2->1.4), 하한 도달 시점도 늦춤
       * (gameMode === 'bossrush' ? 0.85 : 1); // 보스러시는 백제자객 등장 빈도를 조금 더 높임
     const spawnInterval = spawnIntervalBase * (1 + (1 - graceProgress) * 1.2); // 유예 시작 시 간격 최대 2.2배로 완화
     if (spawnTimer <= 0) {
       spawnTimer = spawnInterval;
-      const burstBase = Math.min(11, 1 + Math.floor(growthTime / 55)) * (isMobileLayout ? MOBILE_BURST_MULT : 1); // 버스트 상한 상향(8->11)으로 후반 압박 강화
+      const burstBase = Math.min(10, 1 + Math.floor(growthTime / 55)) * (isMobileLayout ? MOBILE_BURST_MULT : 1); // 물량 압박이 과하다는 피드백으로 상한을 11->10으로 소폭 완화
       const burst = Math.max(1, Math.round(burstBase * (0.35 + 0.65 * graceProgress))); // 유예 시작 시 버스트도 35%까지 완화
       for (let i = 0; i < burst; i++) {
         if (enemies.length >= MAX_ENEMIES) {
@@ -4414,6 +4415,13 @@ function update(dt) {
         spawnParticles(e.x, e.y, e.variant === 'pd' ? '#ffd700' : '#b26fe0', 26);
         spawnParticles(e.x, e.y, '#ffd54f', 14);
         spawnGem({ x: e.x, y: e.y, xp: Math.round(e.xp * (player.luck || 1)), r: 10 });
+        if (e.isBoss) {
+          // 보스전이 끝나면 화면에 남아있는 경험치 젬을 전부 즉시 흡수 (직접 주우러 다닐 필요 없이 시원하게 정리)
+          for (const g of gems) xp += g.xp;
+          gems = [];
+          gemGrid = new Map();
+          checkLevelUp();
+        }
         // 보스러시는 이 세 보스가 10초 간격으로 무한 반복되므로, 서바이벌과 같은 3장을 그대로 주면
         // 몇 분 만에 카드가 과도하게 쌓여 무기가 급격히 강해짐 - 보스러시에서는 1장으로 축소
         const bossCardReward = gameMode === 'bossrush' ? 1 : 3;
@@ -4930,7 +4938,10 @@ function checkLevelUp() {
   while (xp >= xpToNext) {
     xp -= xpToNext;
     level++;
-    xpToNext = Math.floor(xpToNext * 1.25 + 5);
+    // 30레벨 이후로는 요구량 배율을 1.25 -> 1.20으로 낮춰 후반 레벨링 피로도를 완화
+    // (여전히 꾸준히 세지는 재미는 남기되, 30레벨+ 구간이 지나치게 빡빡하다는 피드백에 대응)
+    const growthMult = level >= 30 ? 1.20 : 1.25;
+    xpToNext = Math.floor(xpToNext * growthMult + 5);
     document.getElementById('levelText').textContent = 'Lv.' + level;
     pendingLevelUps++;
     leveledUp = true;
@@ -6533,16 +6544,16 @@ async function renderLeaderboard(highlightEntry, targetId, platform, mode) {
   });
 }
 
-// 명예의 전당 TOP 3 (역대 최고 기록, 초기화 없이 영구 유지)
+// 명예의 전당 TOP 3 (이번 달 기록 기준, 매월 1일 자동으로 새로 시작)
 async function renderAllTimeLeaderboard(targetId, platform, mode) {
   const listEl = document.getElementById(targetId);
   if (!listEl) return;
   listEl.innerHTML = '<li style="justify-content:center; color:#666;">불러오는 중...</li>';
-  if (!window.fbLoadAllTimeTop) {
+  if (!window.fbLoadMonthlyTop) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadAllTimeTop(leaderboardCollectionFor(platform, mode), 3);
+  const list = await window.fbLoadMonthlyTop(leaderboardCollectionFor(platform, mode), 3);
   listEl.innerHTML = '';
   if (!list.length) {
     listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
@@ -6579,6 +6590,13 @@ function setActiveLbModeTab(tabsContainer, mode) {
 }
 
 // 게임오버 화면 리더보드 탭 (플레이한 기기/모드 기준으로 기본 선택, 서바이벌<->보스러시 전환 가능)
+// 명예의 전당 제목의 "OO년 O월" 부분을 현재 날짜 기준으로 채워넣음 (매달 자동으로 갱신)
+(function fillMonthlyTop3Label() {
+  const now = new Date();
+  const label = `${String(now.getFullYear()).slice(2)}년 ${now.getMonth() + 1}월`;
+  document.querySelectorAll('.monthlyTop3Label').forEach(el => { el.textContent = label; });
+})();
+
 const leaderboardWrapTabs = document.getElementById('leaderboardWrapPlatformTabs');
 const leaderboardWrapModeTabs = document.getElementById('leaderboardWrapModeTabs');
 let leaderboardWrapMode = 'survival';
@@ -6720,7 +6738,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = 'hotfix260902';
+const LATEST_NOTICE_VERSION = 'hotfix260903';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -6795,6 +6813,16 @@ const NOTICE_CONTENT = {
       { text: '🐛 버그 수정 / 안정성 향상' },
       { text: '레벨업 시 카드가 중복으로 뜨던 문제 수정' },
       { text: '초장시간 플레이 시 몹 능력치 폭증으로 게임이 멈추던 프리징 버그 수정' },
+    ],
+  },
+  'hotfix260903': {
+    title: '핫픽스 안내 (260903)',
+    items: [
+      { text: '💎 보스전이 종료되면 화면의 모든 경험치를 습득하도록 변경했습니다.' },
+      { gap: true },
+      { text: '🥷🏼 몹 스폰 밀도를 소폭 완화 했습니다.' },
+      { gap: true },
+      { text: '📈 30레벨 이후 경험치 요구량 배율을 완화했습니다.' },
     ],
   },
   'hotfix260902': {
@@ -7688,6 +7716,10 @@ window.addEventListener('load', () => {
     const weekNum = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
     return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
   }
+  // 명예의 전당(TOP 3)을 역대 기록이 아니라 이번 달 기록으로 집계하기 위한 월 키 ("2026-09" 형태)
+  function getMonthKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
 
   window.fbSubmitScore = async function (entry, collectionName) {
     try {
@@ -7698,7 +7730,8 @@ window.addEventListener('load', () => {
         kills: entry.kills,
         time: entry.time,
         character: entry.character || 'cat',
-        week: getWeekKey(new Date()), // 주간 랭킹 필터링용 (올타임 랭킹 조회 시엔 무시됨)
+        week: getWeekKey(new Date()), // 주간 랭킹 필터링용
+        month: getMonthKey(new Date()), // 명예의 전당(이달의 TOP 3) 필터링용
         createdAt: serverTimestamp()
       });
       return true;
@@ -7721,16 +7754,21 @@ window.addEventListener('load', () => {
     }
   };
 
-  // 올타임 TOP N (초기화 없이 역대 전체 기록 기준) - 명예의 전당용, 기본 3명
-  window.fbLoadAllTimeTop = async function (collectionName, topN) {
+  // 이달의 TOP N (month 필드로 필터링 - 달이 바뀌면 자동으로 지난달 기록은 안 보임) - 명예의 전당용, 기본 3명
+  window.fbLoadMonthlyTop = async function (collectionName, topN) {
     try {
-      const q = query(collection(db, collectionName || "leaderboard"), orderBy("score", "desc"), limit(topN || 3));
+      const q = query(
+        collection(db, collectionName || "leaderboard"),
+        where("month", "==", getMonthKey(new Date())),
+        orderBy("score", "desc"),
+        limit(topN || 3)
+      );
       const snap = await getDocs(q);
       const list = [];
       snap.forEach(d => list.push(d.data()));
       return list;
     } catch (e) {
-      console.error("올타임 리더보드 조회 실패:", e);
+      console.error("이달의 리더보드 조회 실패:", e);
       return [];
     }
   };
