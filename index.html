@@ -7719,9 +7719,15 @@ window.addEventListener('load', () => {
     const weekNum = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
     return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
   }
-  // 명예의 전당(TOP 3)을 역대 기록이 아니라 이번 달 기록으로 집계하기 위한 월 키 ("2026-09" 형태)
-  function getMonthKey(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  // 이번 달 1일 ~ 말일에 걸쳐있는 ISO 주차 키를 모두 모음 (보통 4~5개) - 명예의 전당을
+  // 새 필드/새 색인 없이 기존 week 필드 + 이미 배포된 week+score 색인만으로 조회하기 위함.
+  // 월 경계에 걸친 주(예: 8/31이 속한 주)는 양쪽 달에 걸쳐 조금씩 겹쳐 보일 수 있음(허용 가능한 오차).
+  function getMonthWeekKeys(d) {
+    const year = d.getFullYear(), month = d.getMonth();
+    const last = new Date(year, month + 1, 0).getDate();
+    const keys = new Set();
+    for (let day = 1; day <= last; day++) keys.add(getWeekKey(new Date(year, month, day)));
+    return Array.from(keys);
   }
 
   window.fbSubmitScore = async function (entry, collectionName) {
@@ -7734,7 +7740,6 @@ window.addEventListener('load', () => {
         time: entry.time,
         character: entry.character || 'cat',
         week: getWeekKey(new Date()), // 주간 랭킹 필터링용
-        month: getMonthKey(new Date()), // 명예의 전당(이달의 TOP 3) 필터링용
         createdAt: serverTimestamp()
       });
       return true;
@@ -7757,12 +7762,13 @@ window.addEventListener('load', () => {
     }
   };
 
-  // 이달의 TOP N (month 필드로 필터링 - 달이 바뀌면 자동으로 지난달 기록은 안 보임) - 명예의 전당용, 기본 3명
+  // 이달의 TOP N (이번 달에 걸친 주차 키들로 필터링 - 기존 week+score 색인을 그대로 재사용해서
+  // 별도 색인 생성 없이 과거 기록까지 즉시 반영됨) - 명예의 전당용, 기본 3명
   window.fbLoadMonthlyTop = async function (collectionName, topN) {
     try {
       const q = query(
         collection(db, collectionName || "leaderboard"),
-        where("month", "==", getMonthKey(new Date())),
+        where("week", "in", getMonthWeekKeys(new Date())),
         orderBy("score", "desc"),
         limit(topN || 3)
       );
