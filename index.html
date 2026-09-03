@@ -349,6 +349,7 @@
   }
   #startAllTimeList {
     list-style: none; padding: 0; margin: 0; width: 95%; max-width: 480px;
+    max-height: 260px; overflow-y: auto;
     background: #1a1a26; border-radius: 8px; border: 1px solid #4a3c1a;
   }
   #startAllTimeList li {
@@ -661,7 +662,7 @@
     max-height: 260px; overflow-y: auto;
     background: #1a1a26; border-radius: 8px; border: 1px solid #333;
   }
-  #allTimeList { max-height: none; border-color: #4a3c1a; }
+  #allTimeList { max-height: 260px; border-color: #4a3c1a; }
   #leaderboardList li, #allTimeList li {
     display: flex; align-items: center; padding: 6px 12px;
     font-size: 13px; border-bottom: 1px solid #262636;
@@ -798,7 +799,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
       <button class="lbTabBtn" data-platform="pc">PC</button>
       <button class="lbTabBtn" data-platform="mobile">모바일</button>
     </div>
-    <h4>👑 <span class="monthlyTop3Label"></span> TOP 3</h4>
+    <h4>👑 <span class="monthlyTop3Label"></span> TOP 10</h4>
     <ol id="allTimeList"></ol>
     <h4>📅 이번 주 TOP 20 (매주 월요일 초기화)</h4>
     <ol id="leaderboardList"></ol>
@@ -910,7 +911,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     <button class="lbTabBtn" data-platform="pc">PC</button>
     <button class="lbTabBtn" data-platform="mobile">모바일</button>
   </div>
-  <h4>👑 <span class="monthlyTop3Label"></span> TOP 3</h4>
+  <h4>👑 <span class="monthlyTop3Label"></span> TOP 10</h4>
   <ol id="startAllTimeList"></ol>
   <h4>📅 이번 주 TOP 20 (매주 월요일 초기화)</h4>
   <ol id="startLeaderboardList"></ol>
@@ -6544,7 +6545,7 @@ async function renderLeaderboard(highlightEntry, targetId, platform, mode) {
   });
 }
 
-// 명예의 전당 TOP 3 (이번 달 기록 기준, 매월 1일 자동으로 새로 시작)
+// 명예의 전당 TOP 10 (이번 달 기록 기준, 매월 1일 자동으로 새로 시작)
 async function renderAllTimeLeaderboard(targetId, platform, mode) {
   const listEl = document.getElementById(targetId);
   if (!listEl) return;
@@ -6553,7 +6554,7 @@ async function renderAllTimeLeaderboard(targetId, platform, mode) {
     listEl.innerHTML = '<li style="justify-content:center; color:#e33;">리더보드 연결 실패</li>';
     return;
   }
-  const list = await window.fbLoadMonthlyTop(leaderboardCollectionFor(platform, mode), 3);
+  const list = await window.fbLoadMonthlyTop(leaderboardCollectionFor(platform, mode), 10);
   listEl.innerHTML = '';
   if (!list.length) {
     listEl.innerHTML = '<li style="justify-content:center; color:#666;">아직 기록이 없어요</li>';
@@ -6823,6 +6824,8 @@ const NOTICE_CONTENT = {
       { text: '🥷🏼 몹 스폰 밀도를 소폭 완화 했습니다.' },
       { gap: true },
       { text: '📈 30레벨 이후 경험치 요구량 배율을 완화했습니다.' },
+      { gap: true },
+      { text: '🏆 명예의 전당을 월간 TOP 10 으로 변경하였습니다.' },
     ],
   },
   'hotfix260902': {
