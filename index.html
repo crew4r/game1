@@ -2178,7 +2178,7 @@ let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncount
 let carBossEncounterCount, fireTrail;
 let generalSpawnTimer; // 백제장군(엘리트몹): 경과 시간에 따라 동시 생존 상한이 늘어나며 랜덤 간격으로 계속 등장 (getGeneralMaxCount 참고)
 let generalSlashes; // 백제장군이 휘두를 때 날아가는 검기 이펙트
-let gameTime, growthTime, killCount, killScoreAccum, spawnTimer, running, lastTs;
+let gameTime, growthTime, killCount, killScoreAccum, bossKillCount, spawnTimer, running, lastTs;
 let postBossGraceTimer;
 let evoGauge; // 진화 게이지: 일반 몹 처치 +1(보스전 중엔 미카운트), 백제장군 처치 +5, 보스 처치 +10. evolutionGaugeMax에서 가득 차면 진화 발동 후 0으로 리셋
 const EVOLUTION_GAUGE_BASE = 600;
@@ -2364,6 +2364,7 @@ function initGame() {
   postBossGraceTimer = 0;
   killCount = 0;
   killScoreAccum = 0;
+  bossKillCount = 0;
   evoGauge = 0;
   evolutionCount = 0;
   evolutionGaugeMax = EVOLUTION_GAUGE_BASE;
@@ -4390,7 +4391,7 @@ function update(dt) {
       remove = true;
       killCount++;
       killScoreAccum += killScoreForTime(growthTime); // 스폰 밀도 완화로 줄어든 후반부 처치 속도만큼 킬당 점수를 보정
-      if (e.isBoss) killScoreAccum += BOSS_KILL_SCORE_BONUS; // 보스(꾸대표/피디니무/연수아저씨/꾸꾸꾸) 처치 시 추가 점수
+      if (e.isBoss) { killScoreAccum += BOSS_KILL_SCORE_BONUS; bossKillCount++; } // 보스(꾸대표/피디니무/연수아저씨/꾸꾸꾸) 처치 시 추가 점수
       if (evolutionActiveTimer <= 0) { // 진화 버스트 중 처치는 게이지에 영향 없음
         if (e.isBoss) {
           evoGauge = Math.min(evolutionGaugeMax, evoGauge + 10);
@@ -6495,7 +6496,9 @@ function killScoreForTime(t) {
 }
 
 function computeScore() {
-  return Math.floor(gameTime) * 1 + killScoreAccum + level * 40;
+  // killScoreAccum은 시점별 소수 배율이 누적되어 정수가 아니므로, 서버 검증 규칙(score is int)에
+  // 맞춰 반올림한다.
+  return Math.floor(gameTime) * 1 + Math.round(killScoreAccum) + level * 40;
 }
 
 let lastScore = 0;
@@ -6687,7 +6690,7 @@ async function submitScore() {
   btn.disabled = true;
   btn.textContent = '등록 중...';
   const myPlatform = isMobileLayout ? 'mobile' : 'pc'; // 실제 플레이한 기기 기준으로 해당 컬렉션에 등록
-  const entry = { name, score: lastScore, level, kills: killCount, time: Math.floor(gameTime), character: selectedCharacter };
+  const entry = { name, score: lastScore, level, kills: killCount, bossKills: bossKillCount, time: Math.floor(gameTime), character: selectedCharacter };
   const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry, leaderboardCollectionFor(myPlatform, currentRunMode)) : false;
   btn.disabled = false;
   btn.textContent = '리더보드 등록';
