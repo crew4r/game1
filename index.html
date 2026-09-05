@@ -7759,6 +7759,7 @@ window.addEventListener('load', () => {
         score: entry.score,
         level: entry.level,
         kills: entry.kills,
+        bossKills: entry.bossKills || 0,
         time: entry.time,
         character: entry.character || 'cat',
         week: getWeekKey(new Date()), // 주간 랭킹 필터링용
