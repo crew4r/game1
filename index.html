@@ -3241,7 +3241,7 @@ function updateMiniCarWander(e, dt) {
     e.wanderTimer = rand(1.5, 3);
     e.wanderAngle = rand(0, Math.PI * 2);
   }
-  const spd = (e.slowTimer > 0 ? e.speed * (e.slowFactor || 1) : e.speed) * 0.55; // 배회 중엔 평소보다 여유롭게
+  const spd = (e.slowTimer > 0 ? e.speed * (e.slowFactor ?? 1) : e.speed) * 0.55; // 배회 중엔 평소보다 여유롭게
   e.x += Math.cos(e.wanderAngle) * spd * dt;
   e.y += Math.sin(e.wanderAngle) * spd * dt;
   if (!(e.obstacleGraceTimer > 0) && getNearbyObstacles(e.x, e.y, OBSTACLE_CELL * 1.5).some(o => dist(e, o) < e.r + o.r)) {
@@ -3790,17 +3790,17 @@ function update(dt) {
       continue;
     }
     let a = Math.atan2(player.y - e.y, player.x - e.x);
-    let spd = e.slowTimer > 0 ? e.speed * (e.slowFactor || 1) : e.speed;
+    let spd = e.slowTimer > 0 ? e.speed * (e.slowFactor ?? 1) : e.speed;
     if (e.isGeneral) {
       // chase 중에만 이동(플레이어 이동속도의 90%), windup/swing 중에는 완전 정지
       const chaseSpd = player.speed * 0.9;
-      spd = e.generalState === 'chase' ? (e.slowTimer > 0 ? chaseSpd * (e.slowFactor || 1) : chaseSpd) : 0;
+      spd = e.generalState === 'chase' ? (e.slowTimer > 0 ? chaseSpd * (e.slowFactor ?? 1) : chaseSpd) : 0;
     } else if (e.variant === 'bear') {
       // 꾸대표: 플레이어 이동속도의 1.15배로 추격하되, 곰 탈 던지기 직전엔 제자리에 멈춰서
       // 던진다는 걸 예고 - 그 틈에 플레이어가 움직여서 피할 여지를 준다.
       // 충돌 직후에도 freezeTimer 동안 제자리에 얼어붙어서 거리를 벌릴 틈을 준다 (throwState보다 우선)
       const chaseSpd = player.speed * 1.15;
-      spd = (e.freezeTimer > 0 || e.throwState === 'windup') ? 0 : (e.slowTimer > 0 ? chaseSpd * (e.slowFactor || 1) : chaseSpd);
+      spd = (e.freezeTimer > 0 || e.throwState === 'windup') ? 0 : (e.slowTimer > 0 ? chaseSpd * (e.slowFactor ?? 1) : chaseSpd);
     }
     // 리뿌 진화(회오리): 잡힌 동안은 플레이어 추격 대신 회오리 중심으로 빨려들어감 (엘리트/보스는 예외)
     if (e.vortexTimer > 0 && !e.isElite && !e.isGeneral) {
@@ -4293,9 +4293,9 @@ function update(dt) {
         if (dist(bm, e) < e.r + BOOMERANG_HIT_R) {
           e.hp -= bm.dmg;
           bm.hitSet.add(e);
-          // 경직: 짧게(0.35초) 완전 정지 - 그만 좀 봅시다 같은 광역 CC가 아니라 명중한 특정 대상만 잠깐 묶는 정도라
+          // 경직: 짧게(0.5초) 완전 정지 - 그만 좀 봅시다 같은 광역 CC가 아니라 명중한 특정 대상만 잠깐 묶는 정도라
           // 스웜 전체를 막는 효과는 없음 (원소 빙결과 동일한 slowTimer/slowFactor 메커니즘 재사용)
-          e.slowTimer = Math.max(e.slowTimer || 0, 0.35);
+          e.slowTimer = Math.max(e.slowTimer || 0, 0.5);
           e.slowFactor = 0;
           spawnParticles(e.x, e.y, '#90caf9', 3);
           spawnDamageNumber(e.x, e.y, bm.dmg, e.isElite ? 'elite' : 'normal');
