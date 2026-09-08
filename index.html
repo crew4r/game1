@@ -2176,6 +2176,7 @@ window.addEventListener('keydown', (e) => {
 let player, enemies, bullets, gems, particles, camera, throws, chopstickFx, aoeFx, boomerangs, enemyKnives, windFx, lightningFx, earthFx, frostFx;
 let triggeredCompanions, floatingTexts, eliteThrows, damageNumbers, eliteEncounterCount;
 let carBossEncounterCount, fireTrail;
+let calliEncounterCount;
 let generalSpawnTimer; // 백제장군(엘리트몹): 경과 시간에 따라 동시 생존 상한이 늘어나며 랜덤 간격으로 계속 등장 (getGeneralMaxCount 참고)
 let generalSlashes; // 백제장군이 휘두를 때 날아가는 검기 이펙트
 let gameTime, growthTime, killCount, killScoreAccum, bossKillCount, spawnTimer, running, lastTs;
@@ -2374,6 +2375,7 @@ function initGame() {
   pdEncounterCount = 0;
   pdIsFirstEncounter = false;
   carBossEncounterCount = 0;
+  calliEncounterCount = 0;
   generalSpawnTimer = rand(15, 40); // 백제장군 첫 등장까지 랜덤 대기 (동시 생존 상한은 시간 경과로 늘어남, getGeneralMaxCount 참고)
   bossCycleIndex = 0;   // 0=꾸대표, 1=피디니무, 2=연수아저씨 듀오
   bossCycleTimer = 150; // 첫 보스(꾸대표)는 2분30초에 등장
@@ -2659,10 +2661,11 @@ function spawnCarBoss() {
   carBossEncounterCount++;
   const spawn = pickCarEdgeSpawn();
   const base = enemyStatsForTime(growthTime);
-  // 피디니무와 같은 패턴: 첫 조우만 부드럽게, 이후로는 고정으로 강하게 (체력은 매 조우 실전 전투력 반영)
+  // 첫 조우만 부드럽게, 이후로는 고정으로 강하게 (체력은 매 조우 실전 전투력 반영)
   const carIsFirstEncounter = carBossEncounterCount === 1;
   const hpMultBase = carIsFirstEncounter ? 12 : 20;
-  const hp = Math.round(base.hp * hpMultBase * getPlayerPowerMultiplier());
+  // 꾸대표 첫 조우와 동일하게, 첫 조우엔 전투력 배율(레벨/무기개수로 커짐)을 빼서 입문용으로 부드럽게
+  const hp = Math.round(base.hp * hpMultBase * (carIsFirstEncounter ? 1 : getPlayerPowerMultiplier()));
   const contactDmg = carIsFirstEncounter ? 25 : 40; // 피디니무 카메라 데미지(3->5)와 같은 비율로 완화
   const fireDmg = carIsFirstEncounter ? 3 : 5;       // 피디니무 장판 데미지와 같은 패턴
   enemies.push({
@@ -2926,13 +2929,16 @@ function updateSoundBoss(e, dt) {
 
 // ---------- 서예선생님(묵향선생) ----------
 function spawnCalliBoss() {
+  calliEncounterCount++;
+  const calliIsFirstEncounter = calliEncounterCount === 1;
   const angle = rand(0, Math.PI * 2);
   const zoom = isMobileLayout ? MOBILE_ZOOM : 1;
   const spawnDist = (Math.max(canvas.width, canvas.height) / 2) / zoom + 60;
   const x = player.x + Math.cos(angle) * spawnDist;
   const y = player.y + Math.sin(angle) * spawnDist;
   const base = enemyStatsForTime(growthTime);
-  const hp = Math.round(base.hp * 14 * getPlayerPowerMultiplier());
+  // 꾸대표/연수아저씨 첫 조우와 동일하게, 첫 조우엔 전투력 배율을 빼서 입문용으로 부드럽게
+  const hp = Math.round(base.hp * 14 * (calliIsFirstEncounter ? 1 : getPlayerPowerMultiplier()));
   enemies.push({
     x, y, hp, maxHp: hp,
     speed: player.speed * 0.7, dmg: Math.round(base.dmg * 1.6), r: 24, color: '#6d4c41',
