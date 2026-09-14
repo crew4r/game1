@@ -759,6 +759,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   <div id="levelText">Lv.1</div>
   <div>⏱ <span id="timeText">00:00</span></div>
   <div>💀 <span id="killText">0</span></div>
+  <div>💯 <span id="scoreText">0</span></div>
 </div>
 <div style="position:fixed; top:36px; left:10px; width:calc(100% - 20px);">
   <div id="xpBarWrap"><div id="xpBar"></div></div>
@@ -2206,6 +2207,7 @@ let gguPulseFx = [];
 // 꾸꾸꾸 정사각형 아레나: 벽이 좁혀오지는 않지만, 밖으로 나가면 지속 데미지
 let gguArenaActive = false;
 let gguArenaCenter = null;
+let gguArenaStartTime = 0; // 결투 지속시간 계산용(gameTime 기준) - 피디니무의 pdArenaStartTime과 동일한 용도
 const GGU_ARENA_HALF = 380;
 const GGU_OUTSIDE_DPS = 8;
 let gguOutsideTickAccum = 0;
@@ -2344,6 +2346,7 @@ function initGame() {
   gguPulseFx = [];
   gguArenaActive = false;
   gguArenaCenter = null;
+  gguArenaStartTime = 0;
   gguOutsideTickAccum = 0;
   if (gguMusicActive) endGguMusic(); // 지난 판에서 꾸꾸꾸전 도중 죽었으면 새 판 시작 시 음악 원상복구
   calliSlashFx = [];
@@ -2745,6 +2748,7 @@ function spawnSoundBoss() {
   noteBullets = [];
   gguArenaActive = true;
   gguArenaCenter = { x: player.x, y: player.y };
+  gguArenaStartTime = gameTime;
   gguOutsideTickAccum = 0;
   clearGguArenaObstacles(gguArenaCenter.x, gguArenaCenter.y, GGU_ARENA_HALF);
   startGguMusic();
@@ -3535,10 +3539,10 @@ function update(dt) {
   if (evolutionActiveTimer > 0) {
     evolutionActiveTimer = Math.max(0, evolutionActiveTimer - dt);
   }
-  // 피디니무 아레나 전투 중엔 몹 성장 곡선/스폰 페이스에 쓰이는 growthTime을 멈춰서
+  // 피디니무/꾸꾸꾸 결투 중엔 몹 성장 곡선/스폰 페이스에 쓰이는 growthTime을 멈춰서
   // 보스전을 오래 끌수록 끝난 직후 몹이 갑자기 확 세지고 몰려나오는 문제를 방지한다.
   // (아레나 자체의 벽 축소 타이머·등급 판정 등은 계속 흐르는 gameTime을 그대로 사용)
-  if (!pdArenaActive) growthTime += dt;
+  if (!pdArenaActive && !soundBossActive) growthTime += dt;
   document.getElementById('timeText').textContent =
     String(Math.floor(gameTime / 60)).padStart(2, '0') + ':' +
     String(Math.floor(gameTime % 60)).padStart(2, '0');
@@ -4398,7 +4402,16 @@ function update(dt) {
       remove = true;
       killCount++;
       killScoreAccum += killScoreForTime(growthTime); // 스폰 밀도 완화로 줄어든 후반부 처치 속도만큼 킬당 점수를 보정
-      if (e.isBoss) { killScoreAccum += BOSS_KILL_SCORE_BONUS; bossKillCount++; } // 보스(꾸대표/피디니무/연수아저씨/꾸꾸꾸) 처치 시 추가 점수
+      if (e.isBoss) {
+        bossKillCount++;
+        if (e.variant === 'pd' || e.variant === 'ggu') {
+          // 스폰이 멎는 결투형 보스는 고정 보너스 대신 결투 시간만큼의 파밍 손해를 보전
+          const arenaStart = e.variant === 'pd' ? pdArenaStartTime : gguArenaStartTime;
+          killScoreAccum += Math.max(0, gameTime - arenaStart) * farmRatePerSecond(growthTime);
+        } else {
+          killScoreAccum += BOSS_KILL_SCORE_BONUS; // 꾸대표/연수아저씨는 전투 중에도 파밍 가능하니 기존 고정 보너스 유지
+        }
+      }
       if (evolutionActiveTimer <= 0) { // 진화 버스트 중 처치는 게이지에 영향 없음
         if (e.isBoss) {
           evoGauge = Math.min(evolutionGaugeMax, evoGauge + 10);
@@ -4481,6 +4494,7 @@ function update(dt) {
     }
   }
   document.getElementById('killText').textContent = killCount;
+  document.getElementById('scoreText').textContent = computeScore().toLocaleString();
 
   // 큰 차가 사라졌으면(처치됨) 짝인 작은 차도 같이 퇴장 (드문 이벤트라 filter 비용 무시 가능)
   if (!enemies.some(e => e.variant === 'car')) {
@@ -6500,6 +6514,16 @@ function killScoreForTime(t) {
   const rateOld = burstOld / intervalOld;
   const rateNew = burstNew / intervalNew;
   return 12 * (rateOld / rateNew);
+}
+
+// 피디니무/꾸꾸꾸는 결투 중 일반 몹 스폰이 완전히 멈춰(3666줄) 그동안 킬 점수를 전혀 못 버는데,
+// 고정 보너스(BOSS_KILL_SCORE_BONUS)만으론 이 공백을 못 메워 "몹 안 나오는 보스전은 손해"라는
+// 피드백이 나왔다. 결투 지속시간(gameTime 기준) 동안 정상적으로 몹이 나왔다면 벌었을 점수를
+// 그대로 보전해준다 - 결투가 길어질수록, 후반부일수록 보너스도 같이 커짐.
+function farmRatePerSecond(t) {
+  const interval = Math.max(0.35, 1.4 - t / 90);
+  const burst = Math.min(10, 1 + Math.floor(t / 55));
+  return (burst / interval) * killScoreForTime(t);
 }
 
 function computeScore() {
