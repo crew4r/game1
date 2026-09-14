@@ -923,7 +923,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">신규버전이 업데이트 되었습니다.</span></button>
-    <button class="noticeVersionBtn" data-version="hotfix260903">핫픽스 안내 (260903)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260914">핫픽스 안내 (260914)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix260903">핫픽스 안내 (260903)</button>
     <button class="noticeVersionBtn" data-version="hotfix260902">핫픽스 안내 (260902)</button>
     <button class="noticeVersionBtn" data-version="hotfix260901">핫픽스 안내 (260901)</button>
     <button class="noticeVersionBtn" data-version="notice_0.9.7_preview">0.9.7 업데이트 안내<span class="sub">꾸꾸꾸와 센세(260831)</span></button>
@@ -6790,7 +6791,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = 'hotfix260903';
+const LATEST_NOTICE_VERSION = 'hotfix260914';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -6865,6 +6866,22 @@ const NOTICE_CONTENT = {
       { text: '🐛 버그 수정 / 안정성 향상' },
       { text: '레벨업 시 카드가 중복으로 뜨던 문제 수정' },
       { text: '초장시간 플레이 시 몹 능력치 폭증으로 게임이 멈추던 프리징 버그 수정' },
+    ],
+  },
+  'hotfix260914': {
+    title: '핫픽스 안내 (260914)',
+    items: [
+      { text: '🏆 리더보드 점수 등록이 간헐적으로 실패하던 문제를 수정했습니다.' },
+      { gap: true },
+      { text: '🪃 안원잘부메랑의 경직 효과가 실제로는 적용되지 않던 문제를 수정하고, 경직시간을 늘렸습니다.' },
+      { gap: true },
+      { text: '🖌️ 서예센세가 보스 순환에서 정상적으로 등장하지 않던 문제를 수정했습니다.' },
+      { gap: true },
+      { text: '🚗🖌️ 나의연수아저씨, 서예센세의 첫 조우 체력을 완화했습니다.' },
+      { gap: true },
+      { text: '🎬🎙️ 피디니무, 꾸꾸꾸 보스전의 점수 보상 방식을 개선했습니다.' },
+      { gap: true },
+      { text: '💯 플레이 중 실시간으로 점수를 확인할 수 있는 표시를 추가했습니다.' },
     ],
   },
   'hotfix260903': {
