@@ -2181,7 +2181,7 @@ let carBossEncounterCount, fireTrail;
 let calliEncounterCount;
 let generalSpawnTimer; // 백제장군(엘리트몹): 경과 시간에 따라 동시 생존 상한이 늘어나며 랜덤 간격으로 계속 등장 (getGeneralMaxCount 참고)
 let generalSlashes; // 백제장군이 휘두를 때 날아가는 검기 이펙트
-let gameTime, growthTime, killCount, killScoreAccum, bossKillCount, spawnTimer, running, lastTs;
+let gameTime, growthTime, killCount, killScoreAccum, bossKillCount, arenaBonusAccum, spawnTimer, running, lastTs;
 let postBossGraceTimer;
 let evoGauge; // 진화 게이지: 일반 몹 처치 +1(보스전 중엔 미카운트), 백제장군 처치 +5, 보스 처치 +10. evolutionGaugeMax에서 가득 차면 진화 발동 후 0으로 리셋
 const EVOLUTION_GAUGE_BASE = 600;
@@ -2370,6 +2370,7 @@ function initGame() {
   killCount = 0;
   killScoreAccum = 0;
   bossKillCount = 0;
+  arenaBonusAccum = 0;
   evoGauge = 0;
   evolutionCount = 0;
   evolutionGaugeMax = EVOLUTION_GAUGE_BASE;
@@ -4408,7 +4409,9 @@ function update(dt) {
         if (e.variant === 'pd' || e.variant === 'ggu') {
           // 스폰이 멎는 결투형 보스는 고정 보너스 대신 결투 시간만큼의 파밍 손해를 보전
           const arenaStart = e.variant === 'pd' ? pdArenaStartTime : gguArenaStartTime;
-          killScoreAccum += Math.max(0, gameTime - arenaStart) * farmRatePerSecond(growthTime);
+          const bonus = Math.max(0, gameTime - arenaStart) * farmRatePerSecond(growthTime);
+          killScoreAccum += bonus;
+          arenaBonusAccum += bonus; // 서버 검증 규칙에서 별도 필드로 확인 가능하도록 합계를 따로 추적
         } else {
           killScoreAccum += BOSS_KILL_SCORE_BONUS; // 꾸대표/연수아저씨는 전투 중에도 파밍 가능하니 기존 고정 보너스 유지
         }
@@ -6722,7 +6725,7 @@ async function submitScore() {
   btn.disabled = true;
   btn.textContent = '등록 중...';
   const myPlatform = isMobileLayout ? 'mobile' : 'pc'; // 실제 플레이한 기기 기준으로 해당 컬렉션에 등록
-  const entry = { name, score: lastScore, level, kills: killCount, bossKills: bossKillCount, time: Math.floor(gameTime), character: selectedCharacter };
+  const entry = { name, score: lastScore, level, kills: killCount, bossKills: bossKillCount, arenaBonus: Math.round(arenaBonusAccum), time: Math.floor(gameTime), character: selectedCharacter };
   const ok = window.fbSubmitScore ? await window.fbSubmitScore(entry, leaderboardCollectionFor(myPlatform, currentRunMode)) : false;
   btn.disabled = false;
   btn.textContent = '리더보드 등록';
@@ -7808,6 +7811,7 @@ window.addEventListener('load', () => {
         level: entry.level,
         kills: entry.kills,
         bossKills: entry.bossKills || 0,
+        arenaBonus: entry.arenaBonus || 0,
         time: entry.time,
         character: entry.character || 'cat',
         week: getWeekKey(new Date()), // 주간 랭킹 필터링용
