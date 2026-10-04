@@ -7985,18 +7985,24 @@ window.addEventListener('load', () => {
 
   // 이달의 TOP N (이번 달에 걸친 주차 키들로 필터링 - 기존 week+score 색인을 그대로 재사용해서
   // 별도 색인 생성 없이 과거 기록까지 즉시 반영됨) - 명예의 전당용, 기본 3명
+  // 부적절한 닉네임(욕설/음란/정치)으로 이미 올라간 기록은 삭제하지 않고 화면에서만 숨긴다.
+  // 숨긴 만큼 순위가 비지 않도록 여유분을 더 읽어온 뒤 잘라낸다.
+  const HIDDEN_BUFFER = 20;
+  const dropOffensive = (list, n) => list.filter(e => !window.containsProfanity(e.name || '', true)).slice(0, n);
+
   window.fbLoadMonthlyTop = async function (collectionName, topN) {
     try {
+      const n = topN || 3;
       const q = query(
         collection(db, collectionName || "leaderboard"),
         where("week", "in", getMonthWeekKeys(new Date())),
         orderBy("score", "desc"),
-        limit(topN || 3)
+        limit(n + HIDDEN_BUFFER)
       );
       const snap = await getDocs(q);
       const list = [];
       snap.forEach(d => list.push(d.data()));
-      return list;
+      return dropOffensive(list, n);
     } catch (e) {
       console.error("이달의 리더보드 조회 실패:", e);
       return [];
@@ -8006,16 +8012,17 @@ window.addEventListener('load', () => {
   // 이번 주 랭킹 (week 필드로 필터링 - 주가 바뀌면 자동으로 지난주 기록은 안 보임, 별도 삭제/초기화 작업 불필요)
   window.fbLoadWeeklyTop = async function (collectionName, topN) {
     try {
+      const n = topN || 20;
       const q = query(
         collection(db, collectionName || "leaderboard"),
         where("week", "==", getWeekKey(new Date())),
         orderBy("score", "desc"),
-        limit(topN || 20)
+        limit(n + HIDDEN_BUFFER)
       );
       const snap = await getDocs(q);
       const list = [];
       snap.forEach(d => list.push(d.data()));
-      return list;
+      return dropOffensive(list, n);
     } catch (e) {
       console.error("주간 리더보드 조회 실패:", e);
       return [];
