@@ -6719,18 +6719,139 @@ startLbModeTabs.querySelectorAll('.lbTabBtn').forEach(btn => {
   };
 });
 
-// 닉네임 욕설 필터링 (일반적인 비속어 목록, 공백/특수문자 우회 방지를 위해 정규화 후 검사)
-const NICKNAME_BLOCKLIST = [
-  '시발', '씨발', '씨팔', '시팔', 'ㅅㅂ', 'ㅆㅂ', '개새끼', '개새기', '새끼', '병신', 'ㅂㅅ',
-  '좆', '존나', '지랄', 'ㅈㄹ', '닥쳐', '꺼져', '미친놈', '미친년', '개년', '걸레',
-  'fuck', 'shit', 'bitch', 'asshole', 'bastard',
+// 부적절한 표현 필터(욕설/음란/정치): 닉네임·게시글·댓글 등록 전에 검사한다.
+// 띄어쓰기/특수문자/전각/자모 분리(ㅅㅣㅂㅏㄹ)/기호·숫자 치환(sh1t, b0zi)/글자 반복(fuuuck)/로마자(sibal, bozi)/한영키 오타(tlqkf)를 정규화로 막는다.
+// 클라이언트 검사라 Firestore에 직접 쓰는 요청까지는 막지 못한다.
+
+// 어느 입력칸에서든 막는 한글 표현 (일반 문장에서 우연히 만들어질 가능성이 낮은 것만)
+const BLOCK_KO = [
+  // 욕설
+  '시발', '씨발', '씨팔', '시팔', '씨바', '씨벌', '시벌', '씨빨', '시빨', '쉬발', '씨부랄', '시부랄',
+  'ㅅㅂ', 'ㅆㅂ', 'ㅅㅄ', 'ㅆㅄ', 'ㅅ발', 'ㅆ발', '개새끼', '개새기', '새끼', 'ㅅㄲ', '개색히', '개색기', '쉐끼',
+  '병신', '븅신', '빙신', '병쉰', 'ㅂㅅ', 'ㅄ', '좆', '좆까', '좆같', 'ㅈ같', '존나', '존니', 'ㅈㄴ', '지랄', '지럴', 'ㅈㄹ',
+  '닥쳐', '꺼져', '미친놈', '미친년', '미친새끼', '개년', '걸레', '썅', '쌍년', '쌍놈', '씹새', '씹창', '씹물', '씹년', '씹놈',
+  '느금', '느그엄마', '니애미', '니에미', '니엄마', '엠창', '앰창', '엿먹', '뒈져', '염병', '옘병', '육시랄', '호로새끼', '호로자식', '후레자식',
+  // 혐오 표현
+  '한남충', '김치녀', '된장녀', '맘충', '틀딱', '급식충', '일베', '일간베스트', '메갈리아', '메갈충', '메갈년', '워마드',
+  '전라디언', '경상디언', '쪽바리', '쪽발이', '짱깨', '짱개', '왜놈', '조센징', '니그로', '깜둥이', '노알라',
+  // 음란
+  '섹스', '섹파', '섹드립', '야동', '야설', '포르노', '음란', '자위행위', '딸딸이', '딸치', '오나홀', '음경', '음순', '펠라', '오럴섹스',
+  '질싸', '강간', '성폭행', '성추행', '몸캠', '조건만남', '스와핑', '보빨', '자빨', '보지털', '자지털', 'ㅂㅈ', '창녀', '창년', '갈보', '후장', '귀두', '젖꼭지',
+  // 정치: 인물
+  '이재명', '찢재명', '이죄명', '윤석열', '윤석렬', '윤썩열', '윤어게인', '김건희', '한동훈', '문재인', '문재앙', '문죄인', '대깨문', '개딸',
+  '노무현', '노짱', '박근혜', '닭근혜', '이명박', '박정희', '전두환', '이승만', '김대중', '김정은', '김정일', '김일성', '북괴',
+  '시진핑', '푸틴', '트럼프', '바이든', '오바마', '아베신조',
+  // 정치: 정당/이념/이슈
+  '더불어민주당', '민주당', '국민의힘', '국힘', '국짐', '정의당', '조국혁신당', '개혁신당', '새누리', '한나라당', '자유한국당', '미래통합당', '통합진보당', '통진당', '진보당',
+  '부정선거', '선거조작', '선거부정', '탄핵', '계엄', '내란', '독재', '빨갱이', '종북', '좌빨', '수꼴', '극우', '극좌', '친일', '토착왜구',
 ];
-function normalizeForFilter(text) {
-  return text.toLowerCase().replace(/[\s\-_.!?~^*]/g, '');
+// 닉네임처럼 짧은 입력에서만 막는 한글 표현 (본문에서는 '안 보지', '잠을 자지' 같은 일반 활용과 겹쳐 오탐이 크다)
+const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내'];
+// 영문/로마자: 다른 단어 속에 우연히 들어갈 가능성이 낮은 것 - 띄어쓰기를 지운 문자열에 부분일치
+const BLOCK_EN_LONG = [
+  'fuck', 'shit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dumbass', 'jackass', 'dickhead', 'cunt', 'whore', 'slut', 'pussy', 'faggot',
+  'nigger', 'nigga', 'cocksucker', 'motherfucker', 'blowjob', 'handjob', 'porn', 'hentai', 'cumshot', 'masturbat', 'orgasm', 'sexy', 'sexual', 'molest', 'hitler',
+  'bozi', 'boji', 'bozzi', 'jaji', 'sibal', 'ssibal', 'sibar', 'ssibar', 'sipal', 'ssipal', 'saekki', 'gaesaekki', 'gaesaeki',
+  'byungsin', 'byeongsin', 'byungshin', 'jiral', 'tlqkf', 'qudtls', 'wlfkf', 'rotorl', 'qhwl', 'wkwl', 'tprtm',
+  'jaemyung', 'jaemyeong', 'yoonseokyeol', 'yoonsukyeol', 'moonjaein', 'nomuhyun', 'nomuhyeon', 'parkgeunhye', 'kimjongun', 'kimjongil', 'xijinping',
+];
+// 영문: 짧아서 다른 단어 속에 흔히 들어있는 것(class의 ass, therapist의 rapist 등) - 단어 전체가 일치할 때만
+const BLOCK_EN_WORD = [
+  'ass', 'asses', 'arse', 'anal', 'sex', 'dick', 'dicks', 'cock', 'cocks', 'tit', 'tits', 'boob', 'boobs', 'cum', 'jizz', 'rape', 'raped', 'rapist',
+  'retard', 'retards', 'retarded', 'fag', 'fags', 'twat', 'wank', 'wanker', 'nazi', 'nazis', 'trump', 'biden', 'putin', 'ilbe',
+];
+// 정상 단어인데 위 목록과 겹치는 것 (제거한 뒤 검사)
+const SAFE_EN = /scunthorpe|niggardly/g;
+const SAFE_KO = /(?:동|즉|출|개|표|지|실|당|수|제|예|투|임|상|일|항|평|감|공|연|검|선|접|전|후|입|방)시발(?=[동생사견표급매점역행신전열음달휘])|시발[점역]/g;
+
+const HOMOGLYPH = {
+  'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ѕ': 's', 'ј': 'j',
+  'ο': 'o', 'α': 'a', 'ν': 'v', 'ι': 'i', 'κ': 'k', 'ρ': 'p', 'τ': 't',
+};
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i', '|': 'l' };
+const rangeClass = (...pairs) => new RegExp('[' + pairs.map(([a, b]) => String.fromCharCode(a) + '-' + String.fromCharCode(b)).join('') + ']', 'g');
+const HANGUL_CH = new RegExp(rangeClass([0x1100, 0x11ff], [0x3130, 0x318f], [0xac00, 0xd7af]).source);
+const INVISIBLE_CH = rangeClass([0x200b, 0x200f], [0x2028, 0x2029], [0x2060, 0x2060], [0xfeff, 0xfeff], [0xad, 0xad]);
+const COMBINING_CH = rangeClass([0x300, 0x36f]);
+const JAMO_CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const JAMO_JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+const JAMO_JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+
+// 낱자 자모(ㅅㅣㅂㅏㄹ)를 음절(시발)로 합친다
+function composeJamo(s) {
+  const chars = Array.from(s);
+  let out = '';
+  for (let i = 0; i < chars.length; i++) {
+    const ci = JAMO_CHO.indexOf(chars[i]);
+    const vi = ci >= 0 && i + 1 < chars.length ? JAMO_JUNG.indexOf(chars[i + 1]) : -1;
+    if (ci < 0 || vi < 0) { out += chars[i]; continue; }
+    let ti = 0, used = 2;
+    const tIdx = i + 2 < chars.length ? JAMO_JONG.indexOf(chars[i + 2]) : -1;
+    const nextIsVowel = i + 3 < chars.length && JAMO_JUNG.indexOf(chars[i + 3]) >= 0;
+    if (tIdx > 0 && !nextIsVowel) { ti = tIdx; used = 3; }
+    out += String.fromCharCode(0xAC00 + (ci * 21 + vi) * 28 + ti);
+    i += used - 1;
+  }
+  return out;
 }
-function containsProfanity(text) {
-  const normalized = normalizeForFilter(text);
-  return NICKNAME_BLOCKLIST.some(word => normalized.includes(word));
+function baseNormalize(text) {
+  const t = String(text).replace(INVISIBLE_CH, '');
+  return composeJamo(t).normalize('NFKC').toLowerCase();
+}
+// 한글만 남기고(공백 유지) 영문·숫자·기호는 제거해 사이에 낀 글자를 이어붙인다 (시1발 -> 시발)
+function hangulKey(t) {
+  let o = '';
+  for (const ch of t) {
+    if (HANGUL_CH.test(ch)) o += ch;
+    else if (/\s/.test(ch)) o += ' ';
+  }
+  return o.replace(SAFE_KO, ' ');
+}
+// 영문만 남기고(공백 유지) 한글은 구분자로 취급, leet=true면 숫자/기호를 글자로 치환 (b0z1 -> bozi)
+function latinKey(t, leet) {
+  let o = '';
+  for (let ch of t.normalize('NFD').replace(COMBINING_CH, '')) {
+    if (HOMOGLYPH[ch]) ch = HOMOGLYPH[ch];
+    if (leet && LEET[ch]) ch = LEET[ch];
+    if (ch >= 'a' && ch <= 'z') o += ch;
+    else if (/\s/.test(ch) || HANGUL_CH.test(ch)) o += ' ';
+  }
+  return o.replace(SAFE_EN, ' ');
+}
+// 단어별 + 한 글자씩 띄운 연속 구간을 붙인 것(s e x -> sex, 시 발 -> 시발)
+function tokenViews(key) {
+  const tokens = key.split(/\s+/).filter(Boolean);
+  const views = tokens.slice();
+  let run = '';
+  const flush = () => { if (run.length >= 2) views.push(run); run = ''; };
+  for (const tk of tokens) {
+    if (Array.from(tk).length === 1) run += tk; else flush();
+  }
+  flush();
+  return views;
+}
+const repeatable = w => Array.from(w).map(c => c + '+').join('');
+const EN_LONG_RE = BLOCK_EN_LONG.map(w => new RegExp(repeatable(w)));
+const EN_WORD_RE = BLOCK_EN_WORD.map(w => new RegExp('^' + repeatable(w) + '$'));
+const koKey = w => hangulKey(baseNormalize(w)).replace(/\s+/g, '');
+const KO_LENIENT = BLOCK_KO.map(koKey);
+const KO_STRICT = KO_LENIENT.concat(BLOCK_KO_STRICT.map(koKey));
+
+// strict=true: 띄어쓰기를 모두 무시하고 짧은 어휘까지 막는다 (닉네임용). 기본은 본문/제목용(단어 단위로 검사해 오탐을 줄임).
+function containsProfanity(text, strict = false) {
+  const t = baseNormalize(text);
+  const hKey = hangulKey(t);
+  const koViews = strict ? [hKey.replace(/\s+/g, '')] : tokenViews(hKey);
+  const koWords = strict ? KO_STRICT : KO_LENIENT;
+  if (koViews.some(v => koWords.some(w => v.includes(w)))) return true;
+  for (const leet of [false, true]) {
+    const lKey = latinKey(t, leet);
+    const views = tokenViews(lKey);
+    if (views.some(v => EN_WORD_RE.some(re => re.test(v)))) return true;
+    const longViews = strict ? [lKey.replace(/\s+/g, '')] : views;
+    if (longViews.some(v => EN_LONG_RE.some(re => re.test(v)))) return true;
+  }
+  return false;
 }
 
 async function submitScore() {
@@ -6740,7 +6861,7 @@ async function submitScore() {
   if (!name) name = '익명의 리센느';
   name = name.slice(0, 10);
 
-  if (containsProfanity(name)) {
+  if (containsProfanity(name, true)) {
     errorEl.textContent = '닉네임에 부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
   }
@@ -7578,7 +7699,7 @@ async function submitFreeboardPost() {
     return;
   }
   const adminCodeRaw = adminCodeInput.value.trim();
-  if (containsProfanity(nick) || containsProfanity(title) || containsProfanity(msg)) {
+  if (containsProfanity(nick, true) || containsProfanity(title) || containsProfanity(msg)) {
     errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
   }
