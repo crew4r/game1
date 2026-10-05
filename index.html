@@ -6745,9 +6745,18 @@ const BLOCK_KO = [
   // 정치: 정당/이념/이슈
   '더불어민주당', '민주당', '국민의힘', '국힘', '국짐', '정의당', '조국혁신당', '개혁신당', '새누리', '한나라당', '자유한국당', '미래통합당', '통합진보당', '통진당', '진보당',
   '부정선거', '선거조작', '선거부정', '탄핵', '계엄', '내란', '독재', '빨갱이', '종북', '좌빨', '수꼴', '극우', '극좌', '친일', '토착왜구',
+  // 정치: 일베/보배드림 등 커뮤니티 은어·비하 표현
+  '윤두창', '쥴리', '명태균', '이재앙', '더듬어민주당', '더불어똥', '더불어좆', '친명', '친박', '문슬람', '달창', '주사파', '주사빠',
+  '좌좀', '좌딸', '꼴보수', '보수꼴통', '꼴통보수', '태극기부대', '박사모', '문사모', '일베충', '오유충', '쥐박이', '쥐박', '명박산성', '사자방',
+  '박그네', '탄핵무효', '탄핵반대', '지만원', '광주폭동', '518폭동', '노무노무', '너무현', '슨상님', '선관위해킹', '사전투표조작', '선거사기',
+  '선거개입', '내로남불', '조로남불', '조적조', '폭식투쟁', '유가족충', '유족충',
+  '이준석', '홍준표', '안철수', '심상정', '유시민', '추미애', '이낙연', '오세훈', '박원순', '안희정', '나경원', '황교안', '전광훈',
+  '김어준', '정청래', '김진태', '한덕수', '김문수',
+  // 혐오: 성별/지역/인종/종교 비하
+  '보슬아치', '한녀', '꼴페미', '페미나치', '삼일한', '김치년', '똥슬람', '개독교', '개독충', '짱꼴라', '되놈', '똥남아', '쿰척',
 ];
 // 닉네임처럼 짧은 입력에서만 막는 한글 표현 (본문에서는 '안 보지', '잠을 자지' 같은 일반 활용과 겹쳐 오탐이 크다)
-const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내'];
+const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내', '홍어', '개독'];
 // 영문/로마자: 다른 단어 속에 우연히 들어갈 가능성이 낮은 것 - 띄어쓰기를 지운 문자열에 부분일치
 const BLOCK_EN_LONG = [
   'fuck', 'shit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dumbass', 'jackass', 'dickhead', 'cunt', 'whore', 'slut', 'pussy', 'faggot',
@@ -6755,6 +6764,7 @@ const BLOCK_EN_LONG = [
   'bozi', 'boji', 'bozzi', 'jaji', 'sibal', 'ssibal', 'sibar', 'ssibar', 'sipal', 'ssipal', 'saekki', 'gaesaekki', 'gaesaeki',
   'byungsin', 'byeongsin', 'byungshin', 'jiral', 'tlqkf', 'qudtls', 'wlfkf', 'rotorl', 'qhwl', 'wkwl', 'tprtm',
   'jaemyung', 'jaemyeong', 'yoonseokyeol', 'yoonsukyeol', 'moonjaein', 'nomuhyun', 'nomuhyeon', 'parkgeunhye', 'kimjongun', 'kimjongil', 'xijinping',
+  'ppalgaengi', 'jongbuk', 'jwappal', 'daekkaemun', 'dalchang', 'jeolladian', 'ilbechung', 'ilbeochung',
 ];
 // 영문: 짧아서 다른 단어 속에 흔히 들어있는 것(class의 ass, therapist의 rapist 등) - 단어 전체가 일치할 때만
 const BLOCK_EN_WORD = [
@@ -6842,7 +6852,7 @@ const KO_STRICT = KO_LENIENT.concat(BLOCK_KO_STRICT.map(koKey));
 function containsProfanity(text, strict = false) {
   const t = baseNormalize(text);
   const hKey = hangulKey(t);
-  const koViews = strict ? [hKey.replace(/\s+/g, '')] : tokenViews(hKey);
+  const koViews = strict ? [hKey.replace(/\s+/g, '').replace(SAFE_KO, ' ')] : tokenViews(hKey);
   const koWords = strict ? KO_STRICT : KO_LENIENT;
   if (koViews.some(v => koWords.some(w => v.includes(w)))) return true;
   for (const leet of [false, true]) {
@@ -7563,10 +7573,8 @@ async function submitFreeboardComment() {
     errorEl.textContent = '댓글 내용을 입력해주세요.';
     return;
   }
-  if (containsProfanity(message)) {
-    errorEl.textContent = '부적절한 표현이 포함되어 있어요.';
-    return;
-  }
+  // 댓글은 규칙상 운영자 코드가 맞아야만 쓸 수 있어서(운영자 전용) 표현 필터를 적용하지 않는다 -
+  // 운영자 안내문이 '정치/음란/욕설' 같은 말을 인용할 수 있어야 한다.
   errorEl.textContent = '';
 
   const btn = document.getElementById('freeboardCommentSubmitBtn');
@@ -7612,7 +7620,8 @@ async function handleEditPost() {
     alert('제목과 내용은 비워둘 수 없습니다.');
     return;
   }
-  if (containsProfanity(title) || containsProfanity(message)) {
+  // 운영자 글(isAdmin)은 생성 시 규칙이 운영자 코드를 검증하고 이후 변경도 막혀 있어서 필터 대상에서 제외
+  if (!p.isAdmin && (containsProfanity(title) || containsProfanity(message))) {
     alert('부적절한 표현이 포함되어 있어요.');
     return;
   }
@@ -7718,7 +7727,10 @@ async function submitFreeboardPost() {
     return;
   }
   const adminCodeRaw = adminCodeInput.value.trim();
-  if (containsProfanity(nick, true) || containsProfanity(title) || containsProfanity(msg)) {
+  // 운영자 공지는 '정치/음란/욕설 금지' 같은 문구를 인용해야 하므로 필터를 건너뛰되, 운영자 코드가 틀려
+  // 일반 글로 떨어지면(아래 denied 분기) 필터를 다시 적용해서 코드칸에 아무거나 넣어 우회하지 못하게 한다.
+  const flagged = containsProfanity(nick, true) || containsProfanity(title) || containsProfanity(msg);
+  if (flagged && !adminCodeRaw) {
     errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
     return;
   }
@@ -7733,6 +7745,12 @@ async function submitFreeboardPost() {
     // 시도해보고, 코드가 틀려서 거부되면(denied) 조용히 일반 글로 재시도한다 (기존과 동일한 UX)
     const adminCodeHash = await hashPassword(adminCodeRaw);
     const first = await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin: true, adminCodeHash });
+    if (first === 'denied' && flagged) {
+      btn.disabled = false;
+      btn.textContent = '등록';
+      errorEl.textContent = '부적절한 표현이 포함되어 있어요. 다시 입력해주세요.';
+      return;
+    }
     ok = first === 'ok' ? 'ok' : (first === 'denied'
       ? await window.fbSubmitPost({ nickname: nick, title, message: msg, passwordHash, isAdmin: false, adminCodeHash: '' })
       : first);
