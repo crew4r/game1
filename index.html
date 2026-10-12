@@ -6750,13 +6750,16 @@ const BLOCK_KO = [
   '좌좀', '좌딸', '꼴보수', '보수꼴통', '꼴통보수', '태극기부대', '박사모', '문사모', '일베충', '오유충', '쥐박이', '쥐박', '명박산성', '사자방',
   '박그네', '탄핵무효', '탄핵반대', '지만원', '광주폭동', '518폭동', '노무노무', '너무현', '슨상님', '노무쿤', '노공이산', '부엉이바위', '선관위해킹', '사전투표조작', '선거사기',
   '선거개입', '내로남불', '조로남불', '조적조', '폭식투쟁', '유가족충', '유족충',
+  // 정치: 철자를 비틀어 우회하던 변형 (박근헤, 문제인, 윤쎡렬, 계염군 ...)
+  '박근헤', '문제인', '윤쎡렬', '윤쎡열', '윤두짱', '제메이', '쒸발', '쒸팔', '개시바', '개씨바', '계염', '머중', '박원숭', '문조털',
+  '정동영', '노태우', '김영삼', '윤보선', '최규하',
   '이준석', '홍준표', '안철수', '심상정', '유시민', '추미애', '이낙연', '오세훈', '박원순', '안희정', '나경원', '황교안', '전광훈',
   '김어준', '정청래', '김진태', '한덕수', '김문수',
   // 혐오: 성별/지역/인종/종교 비하
   '보슬아치', '한녀', '꼴페미', '페미나치', '삼일한', '김치년', '똥슬람', '개독교', '개독충', '짱꼴라', '되놈', '똥남아', '쿰척',
 ];
 // 닉네임처럼 짧은 입력에서만 막는 한글 표현 (본문에서는 '안 보지', '잠을 자지' 같은 일반 활용과 겹쳐 오탐이 크다)
-const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내', '홍어', '개독'];
+const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내', '홍어', '개독', '운지', '간첩'];
 // 영문/로마자: 다른 단어 속에 우연히 들어갈 가능성이 낮은 것 - 띄어쓰기를 지운 문자열에 부분일치
 const BLOCK_EN_LONG = [
   'fuck', 'shit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dumbass', 'jackass', 'dickhead', 'cunt', 'whore', 'slut', 'pussy', 'faggot',
@@ -6848,13 +6851,54 @@ const koKey = w => hangulKey(baseNormalize(w)).replace(/\s+/g, '');
 const KO_LENIENT = BLOCK_KO.map(koKey);
 const KO_STRICT = KO_LENIENT.concat(BLOCK_KO_STRICT.map(koKey));
 
+// 발음이 같은 표기(ㅐ/ㅔ, ㅆ/ㅅ, ㅕ/ㅓ 등)를 하나로 합친 키 - 박근혜->박근헤, 문재인->문제인 같은 변형용 (닉네임 검사에만 사용)
+// 자음/이중모음까지 합치면 '대장 개구리'(짱개), '시바견'(씨바), '기두'(귀두), '줄리'(쥴리), '아동'(야동)처럼 정상 닉네임이 걸려서 최소한만 합친다
+const PHON_CHO = {};
+const PHON_JUNG = { 'ㅐ': 'ㅔ', 'ㅒ': 'ㅔ', 'ㅖ': 'ㅔ', 'ㅕ': 'ㅓ' };
+function phoneticKey(s) {
+  let o = '';
+  for (const ch of s) {
+    const code = ch.charCodeAt(0) - 0xAC00;
+    if (code < 0 || code > 11171) { o += ch; continue; }
+    const cho = JAMO_CHO[Math.floor(code / 588)];
+    const jung = JAMO_JUNG[Math.floor((code % 588) / 28)];
+    const ci = JAMO_CHO.indexOf(PHON_CHO[cho] || cho);
+    const vi = JAMO_JUNG.indexOf(PHON_JUNG[jung] || jung);
+    o += String.fromCharCode(0xAC00 + (ci * 21 + vi) * 28 + (code % 28));
+  }
+  return o;
+}
+const KO_PHONETIC = Array.from(new Set(KO_STRICT.map(phoneticKey).filter(w => Array.from(w).length >= 2)));
+
+// 정치인 이름(3글자)은 글자 순서를 섞은 것(노현무, 김중대, 문인재 ...)까지 닉네임에서 막는다
+const BLOCK_NAMES_3 = [
+  '이재명', '문재인', '노무현', '김대중', '박원순', '박근혜', '윤석열', '이명박', '한동훈', '김건희', '박정희', '전두환', '이승만', '김정은',
+  '김일성', '김정일', '시진핑', '홍준표', '이준석', '안철수', '심상정', '유시민', '추미애', '이낙연', '오세훈', '안희정', '나경원', '황교안',
+  '전광훈', '김어준', '정청래', '김진태', '한덕수', '김문수', '노태우', '김영삼', '윤보선', '최규하', '정동영',
+];
+const isSyllable = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3; };
+const sortedChars = s => Array.from(s).sort().join('');
+const NAME_ANAGRAMS = new Set(BLOCK_NAMES_3.map(sortedChars));
+function hasScrambledName(key) {
+  const cs = Array.from(key).filter(isSyllable);
+  for (let i = 0; i + 3 <= cs.length; i++) {
+    if (NAME_ANAGRAMS.has(sortedChars(cs.slice(i, i + 3).join('')))) return true;
+  }
+  return false;
+}
+
 // strict=true: 띄어쓰기를 모두 무시하고 짧은 어휘까지 막는다 (닉네임용). 기본은 본문/제목용(단어 단위로 검사해 오탐을 줄임).
 function containsProfanity(text, strict = false) {
   const t = baseNormalize(text);
   const hKey = hangulKey(t);
-  const koViews = strict ? [hKey.replace(/\s+/g, '').replace(SAFE_KO, ' ')] : tokenViews(hKey);
+  const tight = strict ? hKey.replace(/\s+/g, '').replace(SAFE_KO, ' ') : '';
+  const koViews = strict ? [tight] : tokenViews(hKey);
   const koWords = strict ? KO_STRICT : KO_LENIENT;
   if (koViews.some(v => koWords.some(w => v.includes(w)))) return true;
+  if (strict) {
+    const ph = phoneticKey(tight);
+    if (KO_PHONETIC.some(w => ph.includes(w)) || hasScrambledName(tight)) return true;
+  }
   for (const leet of [false, true]) {
     const lKey = latinKey(t, leet);
     const views = tokenViews(lKey);
