@@ -923,7 +923,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   <h2>🚨 공지사항</h2>
   <div id="noticeVersionList">
     <button class="noticeVersionBtn urgent" data-version="notice_leaderboard_weekly">🚨 긴급공지<span class="sub">신규버전이 업데이트 되었습니다.</span></button>
-    <button class="noticeVersionBtn" data-version="hotfix261005">핫픽스 안내 (261005)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix261012">핫픽스 안내 (261012)<span class="noticeItemNew" id="noticeItemNewBadge">New!</span></button>
+    <button class="noticeVersionBtn" data-version="hotfix261005">핫픽스 안내 (261005)</button>
     <button class="noticeVersionBtn" data-version="hotfix260914">핫픽스 안내 (260914)</button>
     <button class="noticeVersionBtn" data-version="hotfix260903">핫픽스 안내 (260903)</button>
     <button class="noticeVersionBtn" data-version="hotfix260902">핫픽스 안내 (260902)</button>
@@ -7056,7 +7057,7 @@ document.getElementById('closeLeaderboardBtn').onclick = () => {
 // 시작 화면에서 공지사항 조회
 // ---------- 공지사항: 버전별 상세 내용 ----------
 // New! 배지 판단 기준 - 새 공지를 NOTICE_CONTENT/noticeVersionList에 추가할 때 이 값도 최신 버전 키로 함께 갱신
-const LATEST_NOTICE_VERSION = 'hotfix261005';
+const LATEST_NOTICE_VERSION = 'hotfix261012';
 
 // 시작화면 3버튼(리더보드/공지사항/자유게시판)의 New! 배지 - 마지막으로 열람한 시점 이후
 // 새 기록/공지/글이 있으면 표시. Firebase 모듈 스크립트가 다 로드된 뒤에 호출해야 하므로
@@ -7131,6 +7132,12 @@ const NOTICE_CONTENT = {
       { text: '🐛 버그 수정 / 안정성 향상' },
       { text: '레벨업 시 카드가 중복으로 뜨던 문제 수정' },
       { text: '초장시간 플레이 시 몹 능력치 폭증으로 게임이 멈추던 프리징 버그 수정' },
+    ],
+  },
+  'hotfix261012': {
+    title: '핫픽스 안내 (261012)',
+    items: [
+      { text: '🚫 정치/음란/욕설 등 금지어를 5회 연속 입력하면 24시간 동안 닉네임 등록이 정지됩니다.' },
     ],
   },
   'hotfix261005': {
