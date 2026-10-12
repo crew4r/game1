@@ -6954,9 +6954,9 @@ function showStrikeModal() {
   const card = document.createElement('div');
   card.style.cssText = 'background:#1e1e2e;border:2px solid #ff5252;border-radius:12px;padding:22px 20px;max-width:340px;width:100%;text-align:center;color:#eee;line-height:1.6;';
   card.innerHTML =
-    `<div style="font-size:20px;font-weight:bold;color:#ff5252;margin-bottom:12px;">🚨 금지어 ${STRIKE_LIMIT}번이나 걸렸지롱~</div>` +
-    '<div style="font-size:15px;">메롱~ 😛 또 못 올렸지? 약오르지? 약오르지?<br>필터는 안 지치지롱~ ㅋㅋㅋ</div>' +
-    `<div style="font-size:14px;color:#ffd54f;margin-top:14px;">${STRIKE_BLOCK_HOURS}시간 동안 닉네임 못 쓰지롱~<br>그동안 가서 점수나 올리고 오세요 🐹</div>`;
+    `<div style="font-size:20px;font-weight:bold;color:#ff5252;margin-bottom:12px;">🚨 금지어 ${STRIKE_LIMIT}회 연속 시도!</div>` +
+    '<div style="font-size:15px;">그 끈기를 다른 데 쓰셨다면 인생이 좀 달라졌을 텐데요.<br>아, 이미 늦었나요?</div>' +
+    `<div style="font-size:14px;color:#ffd54f;margin-top:14px;">${STRIKE_BLOCK_HOURS}시간 동안 닉네임 등록이 정지됩니다.</div>`;
   const btn = document.createElement('button');
   btn.textContent = '확인';
   btn.style.cssText = 'margin-top:18px;padding:8px 26px;font-size:15px;font-weight:bold;background:#ffd54f;color:#1a1a26;border:none;border-radius:6px;cursor:pointer;';
