@@ -6754,13 +6754,14 @@ const BLOCK_KO = [
   // 정치: 철자를 비틀어 우회하던 변형 (박근헤, 문제인, 윤쎡렬, 계염군 ...)
   '박근헤', '문제인', '윤쎡렬', '윤쎡열', '윤두짱', '제메이', '쒸발', '쒸팔', '개시바', '개씨바', '계염', '머중', '박원숭', '문조털',
   '정동영', '노태우', '김영삼', '윤보선', '최규하',
+  '다까끼마사오', '다카키마사오', '다까기마사오', '다카기마사오', '다까끼', '다카키',
   '이준석', '홍준표', '안철수', '심상정', '유시민', '추미애', '이낙연', '오세훈', '박원순', '안희정', '나경원', '황교안', '전광훈',
   '김어준', '정청래', '김진태', '한덕수', '김문수',
   // 혐오: 성별/지역/인종/종교 비하
   '보슬아치', '한녀', '꼴페미', '페미나치', '삼일한', '김치년', '똥슬람', '개독교', '개독충', '짱꼴라', '되놈', '똥남아', '쿰척',
 ];
 // 닉네임처럼 짧은 입력에서만 막는 한글 표현 (본문에서는 '안 보지', '잠을 자지' 같은 일반 활용과 겹쳐 오탐이 크다)
-const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내', '홍어', '개독', '운지', '간첩'];
+const BLOCK_KO_STRICT = ['보지', '자지', '보짓', '씹', '자위', '발기', '유두', '고환', '불알', '정액', '질내', '홍어', '개독', '운지', '간첩', '진압', '마사오'];
 // 영문/로마자: 다른 단어 속에 우연히 들어갈 가능성이 낮은 것 - 띄어쓰기를 지운 문자열에 부분일치
 const BLOCK_EN_LONG = [
   'fuck', 'shit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dumbass', 'jackass', 'dickhead', 'cunt', 'whore', 'slut', 'pussy', 'faggot',
@@ -6769,6 +6770,7 @@ const BLOCK_EN_LONG = [
   'byungsin', 'byeongsin', 'byungshin', 'jiral', 'tlqkf', 'qudtls', 'wlfkf', 'rotorl', 'qhwl', 'wkwl', 'tprtm',
   'jaemyung', 'jaemyeong', 'yoonseokyeol', 'yoonsukyeol', 'moonjaein', 'nomuhyun', 'nomuhyeon', 'parkgeunhye', 'kimjongun', 'kimjongil', 'xijinping',
   'ppalgaengi', 'jongbuk', 'jwappal', 'daekkaemun', 'dalchang', 'jeolladian', 'ilbechung', 'ilbeochung',
+  'takakimasao', 'takagimasao', 'dakkakimasao',
 ];
 // 영문: 짧아서 다른 단어 속에 흔히 들어있는 것(class의 ass, therapist의 rapist 등) - 단어 전체가 일치할 때만
 const BLOCK_EN_WORD = [
